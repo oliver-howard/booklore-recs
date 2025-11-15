@@ -1,61 +1,99 @@
-# Quick Start Guide
+# Quick Start Guide - Web App
 
-Get your AI book recommendations running in 5 minutes!
+Get your self-hosted BookLore recommendations web app running in 3 minutes!
 
-## Step 1: Install Dependencies
+## 🚀 Docker Quick Start (Recommended)
 
-```bash
-npm install
-```
-
-## Step 2: Configure Environment
+### Step 1: Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file with your credentials:
+Edit `.env` with your credentials:
 
 ```env
-# BookLore credentials
+# BookLore API
+BOOKLORE_API_URL=https://api.booklore.app
 BOOKLORE_USERNAME=your_username
 BOOKLORE_PASSWORD=your_password
 
-# Choose ONE AI provider and add its API key:
+# AI Provider (choose ONE)
+DEFAULT_AI_PROVIDER=google
+GOOGLE_API_KEY=your_google_key
+# OR ANTHROPIC_API_KEY=your_anthropic_key
+# OR OPENAI_API_KEY=your_openai_key
 
-# Option 1: Anthropic Claude (recommended)
-ANTHROPIC_API_KEY=sk-ant-...
-DEFAULT_AI_PROVIDER=anthropic
-
-# Option 2: OpenAI ChatGPT
-# OPENAI_API_KEY=sk-...
-# DEFAULT_AI_PROVIDER=openai
-
-# Option 3: Google Gemini
-# GOOGLE_API_KEY=...
-# DEFAULT_AI_PROVIDER=google
+# Web server
+PORT=3000
+SESSION_SECRET=change-to-random-string
 ```
 
-## Step 3: Build the Project
+### Step 2: Start Container
 
 ```bash
-npm run build
+docker-compose up -d
 ```
 
-## Step 4: Get Recommendations!
+### Step 3: Open Browser
+
+Visit: **http://localhost:3000**
+
+That's it! 🎉
+
+---
+
+## 💻 Local Development (No Docker)
+
+### Step 1: Install & Configure
 
 ```bash
-# Get similar book recommendations
+npm install
+cp .env.example .env
+# Edit .env as shown above
+```
+
+### Step 2: Start Web Server
+
+```bash
+npm run web
+```
+
+### Step 3: Open Browser
+
+Visit: **http://localhost:3000**
+
+---
+
+## 🎯 Using the Web Interface
+
+1. **Statistics Tab**: View your reading history stats
+2. **Similar Books**: Get recommendations like books you loved
+3. **Contrasting**: Discover challenging perspectives
+4. **Blind Spots**: Find gaps in your reading patterns
+5. **Custom**: Enter your own search criteria
+
+---
+
+## 🔧 CLI Mode (Optional)
+
+You can also use the command line:
+
+```bash
+# Similar recommendations
 npm run recommend similar
 
-# Get contrasting perspectives
+# Contrasting perspectives
 npm run recommend contrasting
 
-# Analyze your reading blind spots
+# Analyze blind spots
 npm run recommend blindspots
 
-# View your reading stats
+# View stats
 npm run recommend stats
+
+# Custom search
+npm run recommend custom "science fiction with AI"
 ```
 
 ## Getting API Keys
@@ -80,41 +118,61 @@ npm run recommend stats
 3. Create an API key
 4. Copy the key to your `.env` file
 
-## Troubleshooting
+---
 
-### "Authentication failed"
-- Double-check your BookLore username and password in `.env`
-- Verify you can log in at https://ebooks.fiosa.us/
+## 🛠️ Docker Commands
 
-### "API key not configured"
-- Make sure you've set the API key for your chosen provider
-- Check that `DEFAULT_AI_PROVIDER` matches your provider (anthropic, openai, or google)
+```bash
+# View logs
+docker-compose logs -f
 
-### "No reading history found"
-- You need to have read and rated some books in BookLore first
-- Log in to BookLore and add some books to your reading history
+# Stop container
+docker-compose down
 
-## Example Output
+# Restart
+docker-compose restart
 
-```
-=== SIMILAR BOOK RECOMMENDATIONS ===
-
-1. "Project Hail Mary" by Andy Weir
-   Based on your enjoyment of "The Martian," this book shares the same blend of
-   hard science fiction, humor, and a protagonist using scientific problem-solving
-   to survive against impossible odds.
-
-2. "Recursion" by Blake Crouch
-   Given your high rating of "Dark Matter," you'll appreciate Crouch's exploration
-   of another mind-bending scientific concept with emotional depth and thriller pacing.
+# Rebuild after code changes
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
 ```
 
-## Next Steps
+---
 
-- Try different recommendation types: similar, contrasting, blindspots
-- Use custom recommendations: `npm run recommend custom "science fiction with AI"`
-- Read the full [README.md](README.md) for advanced usage
+## ⚠️ Troubleshooting
 
-## Need Help?
+### Container won't start
+```bash
+docker-compose logs
+```
 
-Check the full documentation in [README.md](README.md) or open an issue on GitHub.
+### Port already in use
+Change `PORT=3001` in `.env`
+
+### Authentication fails
+- Verify BookLore credentials in `.env`
+- Check BOOKLORE_API_URL is correct
+
+### AI provider errors
+- Ensure DEFAULT_AI_PROVIDER matches your API key
+- Verify API key is valid
+
+### No reading history
+- Add and rate books in your BookLore account first
+
+---
+
+## 📚 More Information
+
+- **Full Guide**: [README.md](README.md)
+- **Deployment**: [DEPLOYMENT.md](DEPLOYMENT.md) for production setup
+- **Architecture**: [CLAUDE.md](CLAUDE.md) for technical details
+
+---
+
+## 🔒 Security Tips
+
+- Never commit `.env` to git
+- Generate random SESSION_SECRET: `openssl rand -base64 32`
+- Use HTTPS in production (see [DEPLOYMENT.md](DEPLOYMENT.md))

@@ -8,7 +8,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "recommend": "tsx src/index.ts"
+    "recommend": "tsx src/index.ts",
+    "web": "tsx src/server.ts",
+    "web:build": "tsc && npm run build:frontend",
+    "web:start": "node dist/server.js",
+    "build:frontend": "cp -r public dist/"
   },
   "keywords": [
     "booklore",
@@ -24,10 +28,16 @@
     "@google/generative-ai": "^0.24.1",
     "dotenv": "^16.4.5",
     "openai": "^4.80.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "express-session": "^1.17.3"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/express-session": "^1.17.10",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

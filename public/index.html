@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookLore AI Recommendations</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>📚 BookLore AI Recommendations</h1>
+        <p class="subtitle">Personalized book recommendations powered by AI</p>
+      </header>
+
+      <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Loading recommendations...</p>
+      </div>
+
+      <div id="error" class="error hidden"></div>
+
+      <nav class="tabs">
+        <button class="tab-button active" data-tab="similar">Similar Books</button>
+        <button class="tab-button" data-tab="contrasting">Contrasting</button>
+        <button class="tab-button" data-tab="blindspots">Blind Spots</button>
+        <button class="tab-button" data-tab="custom">Custom</button>
+        <button class="tab-button" data-tab="stats">Statistics</button>
+      </nav>
+
+      <div class="tab-content">
+        <!-- Similar Recommendations -->
+        <div id="similar-tab" class="tab-pane active">
+          <div class="section-header">
+            <h2>Similar Book Recommendations</h2>
+            <p>Books similar to what you've enjoyed</p>
+          </div>
+          <button class="btn btn-primary" onclick="getSimilarRecommendations()">
+            Get Recommendations
+          </button>
+          <div id="similar-results" class="results"></div>
+        </div>
+
+        <!-- Contrasting Recommendations -->
+        <div id="contrasting-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>Contrasting Perspectives</h2>
+            <p>Books that challenge your usual reading patterns</p>
+          </div>
+          <button class="btn btn-primary" onclick="getContrastingRecommendations()">
+            Get Recommendations
+          </button>
+          <div id="contrasting-results" class="results"></div>
+        </div>
+
+        <!-- Blind Spots -->
+        <div id="blindspots-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>Reading Blind Spots</h2>
+            <p>Discover gaps in your reading history</p>
+          </div>
+          <button class="btn btn-primary" onclick="getBlindspots()">
+            Analyze Blind Spots
+          </button>
+          <div id="blindspots-results" class="results"></div>
+        </div>
+
+        <!-- Custom Recommendations -->
+        <div id="custom-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>Custom Recommendations</h2>
+            <p>Get recommendations based on your specific criteria</p>
+          </div>
+          <div class="form-group">
+            <label for="custom-criteria">What are you looking for?</label>
+            <textarea
+              id="custom-criteria"
+              rows="3"
+              placeholder="e.g., science fiction with strong female protagonists, or books about climate change with hopeful endings"
+            ></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="getCustomRecommendations()">
+            Get Recommendations
+          </button>
+          <div id="custom-results" class="results"></div>
+        </div>
+
+        <!-- Statistics -->
+        <div id="stats-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>Your Reading Statistics</h2>
+            <p>Overview of your reading history</p>
+          </div>
+          <button class="btn btn-primary" onclick="getStats()">Load Statistics</button>
+          <div id="stats-results" class="results"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

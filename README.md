@@ -19,6 +19,60 @@ An AI-powered book recommendation system that uses your reading history and rati
 
 ## Installation
 
+### Option 1: Docker (Recommended for Self-Hosting)
+
+1. Clone the repository:
+```bash
+cd booklore_recs
+```
+
+2. Configure your environment:
+```bash
+cp .env.example .env
+```
+
+3. Edit `.env` with your credentials:
+```env
+# BookLore API Configuration
+BOOKLORE_API_URL=https://api.booklore.app
+BOOKLORE_USERNAME=your_username
+BOOKLORE_PASSWORD=your_password
+
+# AI Provider Configuration (choose one)
+ANTHROPIC_API_KEY=your_anthropic_key
+# or
+OPENAI_API_KEY=your_openai_key
+# or
+GOOGLE_API_KEY=your_google_key
+
+# Default AI Provider
+DEFAULT_AI_PROVIDER=google
+
+# Web Server Configuration
+PORT=3000
+SESSION_SECRET=your-random-secret-string-here
+```
+
+4. Start the container:
+```bash
+docker-compose up -d
+```
+
+5. Access the web interface at [http://localhost:3000](http://localhost:3000)
+
+6. Check container health:
+```bash
+docker-compose ps
+docker-compose logs -f
+```
+
+7. Stop the container:
+```bash
+docker-compose down
+```
+
+### Option 2: Local Installation (CLI Only)
+
 1. Clone the repository:
 ```bash
 cd booklore_recs
@@ -34,23 +88,7 @@ npm install
 cp .env.example .env
 ```
 
-4. Edit `.env` with your credentials:
-```env
-# BookLore API Configuration
-BOOKLORE_API_URL=https://your.booklore-url.com/api/v1
-BOOKLORE_USERNAME=your_username
-BOOKLORE_PASSWORD=your_password
-
-# AI Provider Configuration (choose one)
-ANTHROPIC_API_KEY=your_anthropic_key
-# or
-OPENAI_API_KEY=your_openai_key
-# or
-GOOGLE_API_KEY=your_google_key
-
-# Default AI Provider
-DEFAULT_AI_PROVIDER=google
-```
+4. Edit `.env` with your credentials (same as above)
 
 5. Build the project:
 ```bash
@@ -59,7 +97,45 @@ npm run build
 
 ## Usage
 
-### Basic Commands
+### Web Interface
+
+The web interface provides an easy-to-use dashboard for getting recommendations:
+
+**Start the web server (local development):**
+```bash
+npm run web
+```
+
+**Or run in production mode:**
+```bash
+npm run web:build
+npm run web:start
+```
+
+**Access the interface:**
+- Open your browser to [http://localhost:3000](http://localhost:3000)
+- Click on different tabs to explore:
+  - **Similar Books**: Get recommendations based on your reading history
+  - **Contrasting**: Discover challenging perspectives
+  - **Blind Spots**: Analyze your reading patterns
+  - **Custom**: Enter specific criteria for recommendations
+  - **Statistics**: View your reading stats
+
+**API Endpoints:**
+
+If you want to integrate with the API directly:
+
+- `GET /api/health` - Health check
+- `POST /api/auth/init` - Initialize session
+- `GET /api/stats` - Get reading statistics
+- `POST /api/recommendations/similar` - Get similar book recommendations
+- `POST /api/recommendations/contrasting` - Get contrasting recommendations
+- `POST /api/recommendations/blindspots` - Get blind spots analysis
+- `POST /api/recommendations/custom` - Get custom recommendations (requires `criteria` in request body)
+
+### CLI Commands (Command Line Interface)
+
+You can also use the CLI for quick terminal-based access:
 
 **Get similar book recommendations:**
 ```bash
@@ -174,6 +250,8 @@ Provides a comprehensive analysis of your reading patterns, including:
 | `GOOGLE_API_KEY` | Google API key | Required if using Gemini |
 | `AI_TEMPERATURE` | Creativity level (0.0-1.0) | `0.7` |
 | `MAX_RECOMMENDATIONS` | Number of recommendations | `5` |
+| `PORT` | Web server port | `3000` |
+| `SESSION_SECRET` | Session encryption secret | Random string (required for web) |
 
 ### Custom AI Models
 
@@ -282,11 +360,19 @@ const custom = await service.getCustomRecommendations(
 booklore_recs/
 ├── src/
 │   ├── index.ts                    # CLI entry point
+│   ├── server.ts                   # Web server (Express.js)
 │   ├── config.ts                   # Configuration management
 │   ├── types.ts                    # TypeScript type definitions
 │   ├── booklore-client.ts          # BookLore API client
 │   ├── ai-service.ts               # Multi-LLM AI service
 │   └── recommendation-service.ts   # Main recommendation logic
+├── public/
+│   ├── index.html                  # Web interface
+│   ├── styles.css                  # Styles
+│   └── app.js                      # Frontend JavaScript
+├── Dockerfile                      # Container definition
+├── docker-compose.yml              # Docker Compose configuration
+├── .dockerignore                   # Docker ignore file
 ├── package.json
 ├── tsconfig.json
 ├── .env.example
@@ -351,15 +437,85 @@ Implements robust JSON parsing like Unearthed:
 - If persistent, try a different AI provider
 - Check AI temperature (lower = more consistent)
 
+## Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+The easiest way to deploy is using Docker Compose:
+
+```bash
+# Start the application
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+```
+
+### Manual Docker Build
+
+If you prefer to build manually:
+
+```bash
+# Build the image
+docker build -t booklore-recs .
+
+# Run the container
+docker run -d \
+  --name booklore-recommendations \
+  -p 3000:3000 \
+  --env-file .env \
+  booklore-recs
+
+# View logs
+docker logs -f booklore-recommendations
+
+# Stop the container
+docker stop booklore-recommendations
+docker rm booklore-recommendations
+```
+
+### Production Deployment
+
+For production deployment, consider:
+
+1. **Reverse Proxy**: Use Nginx or Traefik to handle HTTPS
+2. **Environment Variables**: Store secrets securely (e.g., using Docker secrets)
+3. **Session Secret**: Generate a strong random string for `SESSION_SECRET`
+4. **Health Checks**: The container includes health checks at `/api/health`
+5. **Restart Policy**: Docker Compose is configured with `restart: unless-stopped`
+
+Example Nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name booklore.example.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
 ## Future Enhancements
 
 Potential features to add:
-- [ ] Web interface for easier use
+- [x] Web interface for easier use
 - [ ] Export recommendations to various formats
 - [ ] Integration with Goodreads
 - [ ] Caching to reduce API costs
 - [ ] Recommendation history tracking
 - [ ] Social features (share recommendations)
+- [ ] User authentication (multi-user support)
+- [ ] Recommendation feedback and learning
 
 ## Inspiration
 

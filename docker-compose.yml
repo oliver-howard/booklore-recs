@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  booklore-recs:
+    build: .
+    container_name: booklore-recommendations
+    ports:
+      - "3000:3000"
+    environment:
+      # BookLore API Configuration
+      - BOOKLORE_USERNAME=${BOOKLORE_USERNAME}
+      - BOOKLORE_PASSWORD=${BOOKLORE_PASSWORD}
+      - BOOKLORE_API_URL=${BOOKLORE_API_URL:-https://api.booklore.app}
+
+      # AI Provider Configuration (choose one)
+      - DEFAULT_AI_PROVIDER=${DEFAULT_AI_PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+
+      # Optional Configuration
+      - AI_TEMPERATURE=${AI_TEMPERATURE:-0.7}
+      - MAX_RECOMMENDATIONS=${MAX_RECOMMENDATIONS:-5}
+      - DEBUG=${DEBUG:-false}
+
+      # Web Server Configuration
+      - PORT=${PORT:-3000}
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
