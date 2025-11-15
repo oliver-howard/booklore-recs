@@ -4,9 +4,7 @@ An AI-powered book recommendation system that uses your reading history and rati
 
 ## Features
 
-- **Dual Interface:**
-  - **Web Application**: User-friendly browser interface with session-based authentication
-  - **CLI**: Fast command-line interface for terminal users
+- **Web Application**: User-friendly browser interface with session-based authentication
 
 - **Multiple Recommendation Types:**
   - **Similar Books**: Get recommendations based on books you've enjoyed
@@ -23,9 +21,7 @@ An AI-powered book recommendation system that uses your reading history and rati
 
 - **Reading Statistics**: View your reading patterns, favorite genres, and top authors
 
-- **Secure Authentication**:
-  - Web mode: Login via UI with session-based credential isolation
-  - CLI mode: Credentials via environment variables
+- **Secure Authentication**: Login via UI with session-based credential isolation
 
 ## Installation
 
@@ -45,7 +41,6 @@ cp .env.example .env
 ```env
 # BookLore API Configuration
 BOOKLORE_API_URL=https://api.booklore.app
-# Note: BookLore credentials are entered via web UI login, not here
 
 # AI Provider Configuration (choose one)
 ANTHROPIC_API_KEY=your_anthropic_key
@@ -64,6 +59,8 @@ SESSION_SECRET=your-random-secret-string-here
 # Optional: Amazon Affiliate Integration
 # AMAZON_AFFILIATE_TAG=your-affiliate-tag
 ```
+
+**Note:** BookLore credentials are entered via the web UI login, not in the `.env` file.
 
 4. Start the container:
 ```bash
@@ -88,7 +85,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### Option 2: Local Installation (CLI and Web)
+### Option 2: Local Installation
 
 1. Clone the repository:
 ```bash
@@ -120,13 +117,13 @@ The web interface provides an easy-to-use dashboard for getting recommendations:
 
 **Start the web server (local development):**
 ```bash
-npm run web:dev
+npm run dev
 ```
 
 **Or run in production mode:**
 ```bash
-npm run web:build
-npm run web:start
+npm run build
+npm start
 ```
 
 **Access the interface:**
@@ -157,59 +154,6 @@ If you want to integrate with the API directly:
 - `POST /api/recommendations/contrasting` - Get contrasting recommendations
 - `POST /api/recommendations/blindspots` - Get blind spots analysis
 - `POST /api/recommendations/custom` - Get custom recommendations (requires `criteria` in request body)
-
-### CLI Commands (Command Line Interface)
-
-You can also use the CLI for quick terminal-based access.
-
-**Note:** For CLI mode, you must configure `BOOKLORE_USERNAME` and `BOOKLORE_PASSWORD` in your `.env` file.
-
-**Get similar book recommendations:**
-```bash
-npm run recommend similar
-# or shorthand:
-npm run recommend s
-```
-
-**Get contrasting perspectives:**
-```bash
-npm run recommend contrasting
-# or shorthand:
-npm run recommend c
-```
-
-**Analyze reading blind spots:**
-```bash
-npm run recommend blindspots
-# or shorthand:
-npm run recommend b
-```
-
-**Get custom recommendations:**
-```bash
-npm run recommend custom "science fiction with strong female protagonists"
-npm run recommend custom "historical fiction set in ancient Rome"
-npm run recommend custom "non-fiction about climate change"
-```
-
-**View reading statistics:**
-```bash
-npm run recommend stats
-```
-
-**Show help:**
-```bash
-npm run recommend help
-```
-
-### Development Mode
-
-Run without building:
-```bash
-npm run dev similar
-npm run dev contrasting
-npm run dev blindspots
-```
 
 ## How It Works
 
@@ -266,24 +210,20 @@ Provides a comprehensive analysis of your reading patterns, including:
 
 ### Environment Variables
 
-| Variable | Description | Default | Required For |
-|----------|-------------|---------|--------------|
-| `BOOKLORE_API_URL` | BookLore API base URL | `https://api.booklore.app` | All modes |
-| `BOOKLORE_USERNAME` | Your BookLore username | - | CLI only |
-| `BOOKLORE_PASSWORD` | Your BookLore password | - | CLI only |
-| `DEFAULT_AI_PROVIDER` | AI provider to use | `anthropic` | All modes |
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `BOOKLORE_API_URL` | BookLore API base URL | `https://api.booklore.app` | Yes |
+| `DEFAULT_AI_PROVIDER` | AI provider to use | `anthropic` | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic API key | - | If using Claude |
 | `OPENAI_API_KEY` | OpenAI API key | - | If using ChatGPT |
 | `GOOGLE_API_KEY` | Google API key | - | If using Gemini |
 | `AI_TEMPERATURE` | Creativity level (0.0-1.0) | `0.7` | Optional |
 | `MAX_RECOMMENDATIONS` | Number of recommendations | `5` | Optional |
-| `PORT` | Web server port | `3000` | Web mode |
-| `SESSION_SECRET` | Session encryption secret | Random string | Web mode (production) |
+| `PORT` | Web server port | `3000` | Optional |
+| `SESSION_SECRET` | Session encryption secret | Random string | Required (production) |
 | `AMAZON_AFFILIATE_TAG` | Amazon affiliate tag | - | Optional |
 
-**Note on Authentication:**
-- **Web mode**: BookLore credentials are entered via UI login, not `.env`
-- **CLI mode**: BookLore credentials must be in `.env` file
+**Note:** BookLore credentials are entered via the web UI login, not in the `.env` file.
 
 ### Custom AI Models
 
@@ -302,12 +242,8 @@ GOOGLE_MODEL=gemini-pro
 The `BookLoreClient` class handles all interactions with the BookLore API:
 
 ```typescript
-// With dynamic credentials (web mode)
+// Create client with user credentials from login
 const client = new BookLoreClient(username, password);
-await client.authenticate();
-
-// With env credentials (CLI mode)
-const client = new BookLoreClient();
 await client.authenticate();
 
 // Get user's reading history
@@ -343,16 +279,12 @@ const analysis = await aiService.analyzeReadingBlindSpots(readings);
 The `RecommendationService` combines BookLore and AI:
 
 ```typescript
-// With dynamic credentials (web mode)
+// Create service with user credentials from login
 const service = new RecommendationService(
   undefined,  // AI config (use defaults)
   username,
   password
 );
-await service.initialize();
-
-// With env credentials (CLI mode)
-const service = new RecommendationService();
 await service.initialize();
 
 // Get recommendations by type
@@ -409,7 +341,6 @@ const custom = await service.getCustomRecommendations(
 ```
 booklore_recs/
 ├── src/
-│   ├── index.ts                    # CLI entry point
 │   ├── server.ts                   # Web server (Express.js)
 │   ├── config.ts                   # Configuration management
 │   ├── types.ts                    # TypeScript type definitions
@@ -419,7 +350,7 @@ booklore_recs/
 │   └── utils.ts                    # Utility functions (Amazon links)
 ├── public/
 │   ├── index.html                  # Web interface with login modal
-│   ├── styles.css                  # Styles
+│   ├── styles.css                  # Styles with light/dark theme
 │   └── app.js                      # Frontend JavaScript
 ├── Dockerfile                      # Container definition
 ├── docker-compose.yml              # Docker Compose configuration
@@ -472,17 +403,11 @@ Implements robust JSON parsing like Unearthed:
 
 ### Authentication Issues
 
-**Web Mode:**
 - Ensure you're entering correct BookLore credentials in the login modal
 - Check browser console for any error messages
 - Verify the BookLore API URL in `.env`
 - Try logging out and back in
-
-**CLI Mode:**
-- Verify BookLore credentials in `.env` file
-- Check if the API URL is correct
-- Ensure your account is active
-- Run with `DEBUG=true` for detailed logging
+- Clear browser cache and cookies if issues persist
 
 ### API Key Issues
 - Confirm the correct API key for your chosen provider

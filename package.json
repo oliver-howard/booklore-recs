@@ -2,16 +2,12 @@
   "name": "booklore-ai-recommendations",
   "version": "1.0.0",
   "description": "AI-powered book recommendation system using BookLore API",
-  "main": "dist/index.js",
+  "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
-    "recommend": "tsx src/index.ts",
-    "web": "tsx src/server.ts",
-    "web:build": "tsc && npm run build:frontend",
-    "web:start": "node dist/server.js",
+    "build": "tsc && npm run build:frontend",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
     "build:frontend": "cp -r public dist/"
   },
   "keywords": [

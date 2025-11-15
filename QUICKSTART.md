@@ -59,7 +59,7 @@ cp .env.example .env
 ### Step 2: Start Web Server
 
 ```bash
-npm run web
+npm run dev
 ```
 
 ### Step 3: Open Browser
@@ -77,27 +77,6 @@ Visit: **http://localhost:3000**
 5. **Custom**: Enter your own search criteria
 
 ---
-
-## 🔧 CLI Mode (Optional)
-
-You can also use the command line:
-
-```bash
-# Similar recommendations
-npm run recommend similar
-
-# Contrasting perspectives
-npm run recommend contrasting
-
-# Analyze blind spots
-npm run recommend blindspots
-
-# View stats
-npm run recommend stats
-
-# Custom search
-npm run recommend custom "science fiction with AI"
-```
 
 ## Getting API Keys
 
@@ -154,8 +133,9 @@ docker-compose logs
 Change `PORT=3001` in `.env`
 
 ### Authentication fails
-- Verify BookLore credentials in `.env`
-- Check BOOKLORE_API_URL is correct
+- Double-check your BookLore username and password
+- Check BOOKLORE_API_URL is correct in `.env`
+- Try logging out and back in
 
 ### AI provider errors
 - Ensure DEFAULT_AI_PROVIDER matches your API key
