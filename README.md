@@ -49,7 +49,7 @@ OPENAI_API_KEY=your_openai_key
 GOOGLE_API_KEY=your_google_key
 
 # Default AI Provider
-DEFAULT_AI_PROVIDER=anthropic
+DEFAULT_AI_PROVIDER=google
 ```
 
 5. Build the project:
@@ -159,21 +159,13 @@ Provides a comprehensive analysis of your reading patterns, including:
 - **Recommendations**: 2-3 books for each identified blind spot
 - **Suggested Topics**: New areas to explore based on your interests
 
-### AI Provider Comparison
-
-| Provider | Model | Strengths | Cost |
-|----------|-------|-----------|------|
-| **Anthropic Claude** | claude-3-5-sonnet-20241022 | Best reasoning, detailed analysis | $$$ |
-| **OpenAI ChatGPT** | gpt-4-turbo-preview | Strong general knowledge | $$$ |
-| **Google Gemini** | gemini-pro | Good value, fast | $$ |
-
 ## Configuration
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOOKLORE_API_URL` | BookLore API base URL | `https://ebooks.fiosa.us/api/v1` |
+| `BOOKLORE_API_URL` | BookLore API base URL | `https://your.booklore-url.com/api/v1` |
 | `BOOKLORE_USERNAME` | Your BookLore username | Required |
 | `BOOKLORE_PASSWORD` | Your BookLore password | Required |
 | `DEFAULT_AI_PROVIDER` | AI provider to use | `anthropic` |
@@ -366,14 +358,13 @@ Potential features to add:
 - [ ] Export recommendations to various formats
 - [ ] Integration with Goodreads
 - [ ] Caching to reduce API costs
-- [ ] Batch processing for multiple users
 - [ ] Recommendation history tracking
 - [ ] Social features (share recommendations)
 
 ## Inspiration
 
 This project is inspired by and uses similar techniques to:
-- [Unearthed App](https://github.com/Unearthed-App/unearthed-app) - AI-powered book analysis and recommendations
+- [Unearthed App](https://github.com/Unearthed-App/unearthed-app) - AI-powered book analysis and highlight syncing
 
 ## License
 
