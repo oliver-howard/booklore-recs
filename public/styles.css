@@ -246,6 +246,25 @@ header h1 {
   text-align: center;
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: auto;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.checkbox-label span {
+  color: var(--text);
+  font-weight: 400;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

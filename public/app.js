@@ -27,6 +27,7 @@ async function checkAuthStatus() {
 // Show/hide login modal
 function showLoginModal() {
   document.getElementById('login-modal').classList.add('show');
+  loadSavedUsername();
 }
 
 function hideLoginModal() {
@@ -45,12 +46,25 @@ function hideUserInfo() {
   document.getElementById('user-info').classList.add('hidden');
 }
 
+// Load saved username if "Remember Me" was checked
+function loadSavedUsername() {
+  const savedUsername = localStorage.getItem('booklore_username');
+  const usernameInput = document.getElementById('login-username');
+  const rememberCheckbox = document.getElementById('remember-me');
+
+  if (savedUsername) {
+    usernameInput.value = savedUsername;
+    rememberCheckbox.checked = true;
+  }
+}
+
 // Handle login form submission
 async function handleLogin(event) {
   event.preventDefault();
 
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
+  const rememberMe = document.getElementById('remember-me').checked;
   const errorDiv = document.getElementById('login-error');
 
   errorDiv.classList.add('hidden');
@@ -72,6 +86,14 @@ async function handleLogin(event) {
 
     // Login successful
     isAuthenticated = true;
+
+    // Save or clear username based on "Remember Me" checkbox
+    if (rememberMe) {
+      localStorage.setItem('booklore_username', username);
+    } else {
+      localStorage.removeItem('booklore_username');
+    }
+
     showUserInfo(data.username);
     hideLoginModal();
     showLoading(false);
