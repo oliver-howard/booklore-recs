@@ -37,7 +37,7 @@ cp .env.example .env
 4. Edit `.env` with your credentials:
 ```env
 # BookLore API Configuration
-BOOKLORE_API_URL=https://ebooks.fiosa.us/api/v1
+BOOKLORE_API_URL=https://your.booklore-url.com/api/v1
 BOOKLORE_USERNAME=your_username
 BOOKLORE_PASSWORD=your_password
 
