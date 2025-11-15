@@ -7,8 +7,8 @@ export class RecommendationService {
   private bookloreClient: BookLoreClient;
   private aiService: AIService;
 
-  constructor(aiConfig?: Partial<AIConfig>) {
-    this.bookloreClient = new BookLoreClient();
+  constructor(aiConfig?: Partial<AIConfig>, bookloreUsername?: string, booklorePassword?: string) {
+    this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
     this.aiService = new AIService(aiConfig);
   }
 

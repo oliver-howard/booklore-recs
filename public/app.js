@@ -1,32 +1,103 @@
 // API base URL
 const API_BASE = '/api';
 
-// Initialize session on page load
-let sessionInitialized = false;
+// Track authentication state
+let isAuthenticated = false;
 
-async function initSession() {
-  if (sessionInitialized) return;
+// Check authentication status
+async function checkAuthStatus() {
+  try {
+    const response = await fetch(`${API_BASE}/auth/status`);
+    const data = await response.json();
+
+    if (data.authenticated) {
+      isAuthenticated = true;
+      hideLoginModal();
+      showUserInfo(data.username);
+    } else {
+      isAuthenticated = false;
+      showLoginModal();
+    }
+  } catch (error) {
+    console.error('Error checking auth status:', error);
+    showLoginModal();
+  }
+}
+
+// Show/hide login modal
+function showLoginModal() {
+  document.getElementById('login-modal').classList.add('show');
+}
+
+function hideLoginModal() {
+  document.getElementById('login-modal').classList.remove('show');
+}
+
+// Show user info in header
+function showUserInfo(username) {
+  const userInfo = document.getElementById('user-info');
+  const usernameDisplay = document.getElementById('username-display');
+  usernameDisplay.textContent = `Logged in as: ${username}`;
+  userInfo.classList.remove('hidden');
+}
+
+function hideUserInfo() {
+  document.getElementById('user-info').classList.add('hidden');
+}
+
+// Handle login form submission
+async function handleLogin(event) {
+  event.preventDefault();
+
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const errorDiv = document.getElementById('login-error');
+
+  errorDiv.classList.add('hidden');
 
   try {
     showLoading(true);
-    const response = await fetch(`${API_BASE}/auth/init`, {
+
+    const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to initialize session');
+      throw new Error(data.message || 'Login failed');
     }
 
-    sessionInitialized = true;
+    // Login successful
+    isAuthenticated = true;
+    showUserInfo(data.username);
+    hideLoginModal();
     showLoading(false);
+
+    // Clear form
+    document.getElementById('login-form').reset();
   } catch (error) {
     showLoading(false);
-    showError(
-      `Authentication failed: ${error.message}. Please check your BookLore credentials in .env`
-    );
-    throw error;
+    errorDiv.textContent = error.message;
+    errorDiv.classList.remove('hidden');
+  }
+}
+
+// Handle logout
+async function handleLogout() {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+
+    isAuthenticated = false;
+    hideUserInfo();
+    showLoginModal();
+
+    // Clear any displayed data
+    document.querySelectorAll('.results').forEach((el) => (el.innerHTML = ''));
+  } catch (error) {
+    console.error('Logout error:', error);
   }
 }
 
@@ -72,9 +143,14 @@ function clearError() {
 
 // Similar recommendations
 async function getSimilarRecommendations() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
   try {
     clearError();
-    await initSession();
     showLoading(true);
 
     const response = await fetch(`${API_BASE}/recommendations/similar`, {
@@ -98,9 +174,14 @@ async function getSimilarRecommendations() {
 
 // Contrasting recommendations
 async function getContrastingRecommendations() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
   try {
     clearError();
-    await initSession();
     showLoading(true);
 
     const response = await fetch(`${API_BASE}/recommendations/contrasting`, {
@@ -124,9 +205,14 @@ async function getContrastingRecommendations() {
 
 // Blind spots analysis
 async function getBlindspots() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
   try {
     clearError();
-    await initSession();
     showLoading(true);
 
     const response = await fetch(`${API_BASE}/recommendations/blindspots`, {
@@ -150,6 +236,12 @@ async function getBlindspots() {
 
 // Custom recommendations
 async function getCustomRecommendations() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
   try {
     clearError();
     const criteria = document.getElementById('custom-criteria').value.trim();
@@ -159,7 +251,6 @@ async function getCustomRecommendations() {
       return;
     }
 
-    await initSession();
     showLoading(true);
 
     const response = await fetch(`${API_BASE}/recommendations/custom`, {
@@ -183,9 +274,14 @@ async function getCustomRecommendations() {
 
 // Get statistics
 async function getStats() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
   try {
     clearError();
-    await initSession();
     showLoading(true);
 
     const response = await fetch(`${API_BASE}/stats`);
@@ -353,4 +449,5 @@ function escapeHtml(text) {
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
   console.log('BookLore Recommendations app loaded');
+  checkAuthStatus();
 });

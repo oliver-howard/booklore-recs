@@ -10,8 +10,13 @@ import { Recommendation, ReadingAnalysis } from './types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Validate configuration on startup
-validateConfig();
+// Validate configuration on startup (but make BookLore credentials optional for web mode)
+try {
+  validateConfig();
+} catch (error) {
+  // In web mode, BookLore credentials are provided by users via UI
+  console.log('Note: BookLore credentials will be provided via web interface');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,27 +47,43 @@ app.use(express.static(publicPath));
 declare module 'express-session' {
   interface SessionData {
     initialized: boolean;
+    bookloreUsername?: string;
+    booklorePassword?: string;
   }
 }
 
-// Create a single shared service instance
-// In production, you might want one service per user
-let sharedService: RecommendationService | null = null;
+// Store service instances per session
+const sessionServices = new Map<string, RecommendationService>();
 
-// Initialize recommendation service
+// Initialize recommendation service for a user session
 async function getService(req: Request): Promise<RecommendationService> {
-  // Initialize shared service if not already done
-  if (!sharedService) {
-    console.log('Initializing recommendation service...');
-    sharedService = new RecommendationService();
-    await sharedService.initialize();
-    console.log('Service initialized successfully');
+  const sessionId = req.sessionID;
+
+  // Check if user has provided credentials
+  if (!req.session.bookloreUsername || !req.session.booklorePassword) {
+    throw new Error('BookLore credentials not configured. Please log in first.');
   }
 
-  // Mark session as initialized
-  req.session.initialized = true;
+  // Get or create service for this session
+  let service = sessionServices.get(sessionId);
 
-  return sharedService;
+  if (!service) {
+    console.log('Creating new service instance for session:', sessionId.substring(0, 8) + '...');
+
+    // Create service with user-specific credentials
+    service = new RecommendationService(
+      undefined, // AI config (use defaults)
+      req.session.bookloreUsername,
+      req.session.booklorePassword
+    );
+
+    await service.initialize();
+    sessionServices.set(sessionId, service);
+    req.session.initialized = true;
+    console.log('Service initialized successfully for user:', req.session.bookloreUsername);
+  }
+
+  return service;
 }
 
 // Error handler middleware
@@ -81,27 +102,74 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.get(
   '/api/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.initialized) {
-      res.json({ authenticated: true });
+    if (req.session.initialized && req.session.bookloreUsername) {
+      res.json({
+        authenticated: true,
+        username: req.session.bookloreUsername,
+      });
     } else {
       res.json({ authenticated: false });
     }
   })
 );
 
-// Initialize session (authenticate with BookLore)
+// Login with BookLore credentials
 app.post(
-  '/api/auth/init',
+  '/api/auth/login',
   asyncHandler(async (req: Request, res: Response) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required',
+      });
+    }
+
     try {
+      // Store credentials in session
+      req.session.bookloreUsername = username;
+      req.session.booklorePassword = password;
+
+      // Try to initialize service (this will test the credentials)
       await getService(req);
-      res.json({ success: true, message: 'Authentication successful' });
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        username: username,
+      });
     } catch (error) {
+      // Clear credentials on failure
+      delete req.session.bookloreUsername;
+      delete req.session.booklorePassword;
+      delete req.session.initialized;
+
       res.status(401).json({
         success: false,
         message: error instanceof Error ? error.message : 'Authentication failed',
       });
     }
+  })
+);
+
+// Logout
+app.post(
+  '/api/auth/logout',
+  asyncHandler(async (req: Request, res: Response) => {
+    const sessionId = req.sessionID;
+
+    // Remove service instance
+    sessionServices.delete(sessionId);
+
+    // Clear session
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Error destroying session:', err);
+      }
+    });
+
+    res.json({ success: true, message: 'Logged out successfully' });
   })
 );
 

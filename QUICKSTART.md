@@ -10,14 +10,9 @@ Get your self-hosted BookLore recommendations web app running in 3 minutes!
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+Edit `.env` with your AI provider configuration:
 
 ```env
-# BookLore API
-BOOKLORE_API_URL=https://api.booklore.app
-BOOKLORE_USERNAME=your_username
-BOOKLORE_PASSWORD=your_password
-
 # AI Provider (choose ONE)
 DEFAULT_AI_PROVIDER=google
 GOOGLE_API_KEY=your_google_key
@@ -27,7 +22,12 @@ GOOGLE_API_KEY=your_google_key
 # Web server
 PORT=3000
 SESSION_SECRET=change-to-random-string
+
+# BookLore API URL (default is fine for most users)
+BOOKLORE_API_URL=https://api.booklore.app
 ```
+
+**Note**: You no longer need to put your BookLore username/password in `.env`! You'll log in through the web interface.
 
 ### Step 2: Start Container
 
@@ -35,11 +35,14 @@ SESSION_SECRET=change-to-random-string
 docker-compose up -d
 ```
 
-### Step 3: Open Browser
+### Step 3: Open Browser & Login
 
-Visit: **http://localhost:3000**
+1. Visit: **http://localhost:3000**
+2. You'll see a login page
+3. Enter your BookLore username and password
+4. Click "Login"
 
-That's it! 🎉
+That's it! 🎉 Your credentials are stored securely in your browser session.
 
 ---
 

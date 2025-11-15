@@ -8,10 +8,11 @@ export class BookLoreClient {
   private authToken?: string;
   private debug: boolean;
 
-  constructor() {
+  constructor(username?: string, password?: string) {
     this.baseUrl = config.booklore.apiUrl;
-    this.username = config.booklore.username;
-    this.password = config.booklore.password;
+    // Use provided credentials or fall back to config (for CLI mode)
+    this.username = username || config.booklore.username;
+    this.password = password || config.booklore.password;
     this.debug = process.env.DEBUG === 'true';
   }
 
