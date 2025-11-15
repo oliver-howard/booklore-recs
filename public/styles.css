@@ -5,16 +5,134 @@
 }
 
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
-  --secondary: #64748b;
-  --success: #10b981;
-  --danger: #ef4444;
-  --bg: #f8fafc;
-  --card-bg: #ffffff;
+  /* Base colors */
+  --clr-dark-a0: #000000;
+  --clr-light-a0: #ffffff;
+
+  /* Theme primary colors */
+  --clr-primary-a0: #3795ed;
+  --clr-primary-a10: #5aa0ef;
+  --clr-primary-a20: #74abf2;
+  --clr-primary-a30: #8bb7f4;
+  --clr-primary-a40: #a0c3f6;
+  --clr-primary-a50: #b4cef8;
+
+  /* Theme surface colors - Dark */
+  --clr-surface-dark-a0: #121212;
+  --clr-surface-dark-a10: #282828;
+  --clr-surface-dark-a20: #3f3f3f;
+  --clr-surface-dark-a30: #575757;
+  --clr-surface-dark-a40: #717171;
+  --clr-surface-dark-a50: #8b8b8b;
+
+  /* Theme surface colors - Light */
+  --clr-surface-light-a0: #f8fafc;
+  --clr-surface-light-a10: #f1f5f9;
+  --clr-surface-light-a20: #e2e8f0;
+  --clr-surface-light-a30: #cbd5e1;
+  --clr-surface-light-a40: #94a3b8;
+  --clr-surface-light-a50: #64748b;
+
+  /* Theme tonal surface colors - Dark */
+  --clr-surface-tonal-dark-a0: #191e24;
+  --clr-surface-tonal-dark-a10: #2e3338;
+  --clr-surface-tonal-dark-a20: #45494e;
+  --clr-surface-tonal-dark-a30: #5d6065;
+  --clr-surface-tonal-dark-a40: #76797d;
+  --clr-surface-tonal-dark-a50: #8f9295;
+
+  /* Theme tonal surface colors - Light */
+  --clr-surface-tonal-light-a0: #e0f2fe;
+  --clr-surface-tonal-light-a10: #ffffff;
+  --clr-surface-tonal-light-a20: #f0f9ff;
+  --clr-surface-tonal-light-a30: #e0f2fe;
+  --clr-surface-tonal-light-a40: #bae6fd;
+  --clr-surface-tonal-light-a50: #7dd3fc;
+
+  /* Success colors */
+  --clr-success-a0: #22946e;
+  --clr-success-a10: #47d5a6;
+  --clr-success-a20: #9ae8ce;
+
+  /* Warning colors */
+  --clr-warning-a0: #a87a2a;
+  --clr-warning-a10: #d7ac61;
+  --clr-warning-a20: #ecd7b2;
+
+  /* Danger colors */
+  --clr-danger-a0: #9c2121;
+  --clr-danger-a10: #d94a4a;
+  --clr-danger-a20: #eb9e9e;
+
+  /* Info colors */
+  --clr-info-a0: #21498a;
+  --clr-info-a10: #4077d1;
+  --clr-info-a20: #92b2e5;
+}
+
+/* Dark theme (default) */
+:root {
+  --clr-surface-a0: var(--clr-surface-dark-a0);
+  --clr-surface-a10: var(--clr-surface-dark-a10);
+  --clr-surface-a20: var(--clr-surface-dark-a20);
+  --clr-surface-a30: var(--clr-surface-dark-a30);
+  --clr-surface-a40: var(--clr-surface-dark-a40);
+  --clr-surface-a50: var(--clr-surface-dark-a50);
+
+  --clr-surface-tonal-a0: var(--clr-surface-tonal-dark-a0);
+  --clr-surface-tonal-a10: var(--clr-surface-tonal-dark-a10);
+  --clr-surface-tonal-a20: var(--clr-surface-tonal-dark-a20);
+  --clr-surface-tonal-a30: var(--clr-surface-tonal-dark-a30);
+  --clr-surface-tonal-a40: var(--clr-surface-tonal-dark-a40);
+  --clr-surface-tonal-a50: var(--clr-surface-tonal-dark-a50);
+
+  /* Semantic mappings */
+  --primary: var(--clr-primary-a10);
+  --primary-dark: var(--clr-primary-a0);
+  --primary-light: var(--clr-primary-a30);
+  --secondary: var(--clr-surface-a40);
+  --success: var(--clr-success-a10);
+  --danger: var(--clr-danger-a10);
+  --warning: var(--clr-warning-a10);
+  --info: var(--clr-info-a10);
+  --bg: var(--clr-surface-a0);
+  --card-bg: var(--clr-surface-tonal-a10);
+  --text: var(--clr-primary-a50);
+  --text-light: var(--clr-surface-a50);
+  --border: var(--clr-surface-a20);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+}
+
+/* Light theme */
+:root[data-theme='light'] {
+  --clr-surface-a0: var(--clr-surface-light-a0);
+  --clr-surface-a10: var(--clr-surface-light-a10);
+  --clr-surface-a20: var(--clr-surface-light-a20);
+  --clr-surface-a30: var(--clr-surface-light-a30);
+  --clr-surface-a40: var(--clr-surface-light-a40);
+  --clr-surface-a50: var(--clr-surface-light-a50);
+
+  --clr-surface-tonal-a0: var(--clr-surface-tonal-light-a0);
+  --clr-surface-tonal-a10: var(--clr-surface-tonal-light-a10);
+  --clr-surface-tonal-a20: var(--clr-surface-tonal-light-a20);
+  --clr-surface-tonal-a30: var(--clr-surface-tonal-light-a30);
+  --clr-surface-tonal-a40: var(--clr-surface-tonal-light-a40);
+  --clr-surface-tonal-a50: var(--clr-surface-tonal-light-a50);
+
+  --primary: var(--clr-primary-a0);
+  --primary-dark: var(--clr-info-a0);
+  --primary-light: var(--clr-primary-a20);
+  --secondary: var(--clr-surface-a40);
+  --success: var(--clr-success-a0);
+  --danger: var(--clr-danger-a0);
+  --warning: var(--clr-warning-a0);
+  --info: var(--clr-info-a0);
+  --bg: var(--clr-surface-a0);
+  --card-bg: var(--clr-surface-tonal-a10);
   --text: #1e293b;
-  --text-light: #64748b;
-  --border: #e2e8f0;
+  --text-light: var(--clr-surface-a50);
+  --border: var(--clr-surface-a20);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
@@ -36,8 +154,8 @@ body {
 header {
   margin-bottom: 40px;
   padding: 40px 20px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--clr-primary-a0) 0%, var(--clr-info-a0) 100%);
+  color: var(--clr-light-a0);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
 }
@@ -65,7 +183,7 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: white;
+  color: var(--clr-light-a0);
 }
 
 .user-info span {
@@ -79,7 +197,7 @@ header h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -90,13 +208,14 @@ header h1 {
 }
 
 .modal-content {
-  background: var(--card-bg);
+  background: var(--clr-surface-tonal-a20);
   padding: 40px;
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-width: 450px;
   width: 90%;
   animation: modalSlideIn 0.3s ease;
+  border: 1px solid var(--border);
 }
 
 @keyframes modalSlideIn {
@@ -205,11 +324,12 @@ header h1 {
 
 .btn-primary {
   background: var(--primary);
-  color: white;
+  color: var(--clr-dark-a0);
+  font-weight: 600;
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark);
+  background: var(--clr-primary-a20);
   transform: translateY(-1px);
   box-shadow: var(--shadow-lg);
 }
@@ -219,12 +339,13 @@ header h1 {
 }
 
 .btn-secondary {
-  background: var(--secondary);
-  color: white;
+  background: var(--clr-surface-a30);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .btn-secondary:hover {
-  background: #475569;
+  background: var(--clr-surface-a40);
 }
 
 .btn-sm {
@@ -257,12 +378,15 @@ header h1 {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s;
+  background: var(--clr-surface-tonal-a10);
+  color: var(--text);
 }
 
 .form-group textarea:focus,
 .form-group input:focus {
   outline: none;
   border-color: var(--primary);
+  background: var(--clr-surface-tonal-a0);
 }
 
 .results {
@@ -402,7 +526,7 @@ header h1 {
 }
 
 .pattern-list {
-  background: var(--bg);
+  background: var(--clr-surface-tonal-a0);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 24px;
@@ -426,6 +550,7 @@ header h1 {
 .loading {
   text-align: center;
   padding: 40px;
+  color: var(--text);
 }
 
 .spinner {
@@ -448,9 +573,9 @@ header h1 {
 }
 
 .error {
-  background: #fee;
-  border: 1px solid var(--danger);
-  color: var(--danger);
+  background: var(--clr-danger-a0);
+  border: 1px solid var(--clr-danger-a10);
+  color: var(--clr-danger-a20);
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -458,6 +583,42 @@ header h1 {
 
 .hidden {
   display: none !important;
+}
+
+.theme-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+  z-index: 999;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.3);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-icon {
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover .theme-icon {
+  transform: rotate(20deg);
 }
 
 @media (max-width: 768px) {
@@ -476,5 +637,13 @@ header h1 {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .theme-toggle {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
   }
 }

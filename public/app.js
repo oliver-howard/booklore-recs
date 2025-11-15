@@ -460,8 +460,41 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Theme toggle functionality
+function toggleTheme() {
+  const root = document.documentElement;
+  const themeIcon = document.getElementById('theme-icon');
+  const currentTheme = root.getAttribute('data-theme');
+
+  if (currentTheme === 'light') {
+    root.removeAttribute('data-theme');
+    themeIcon.textContent = '🌙';
+    localStorage.setItem('theme', 'dark');
+  } else {
+    root.setAttribute('data-theme', 'light');
+    themeIcon.textContent = '☀️';
+    localStorage.setItem('theme', 'light');
+  }
+}
+
+// Load saved theme on page load
+function loadTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  const root = document.documentElement;
+  const themeIcon = document.getElementById('theme-icon');
+
+  if (savedTheme === 'light') {
+    root.setAttribute('data-theme', 'light');
+    themeIcon.textContent = '☀️';
+  } else {
+    root.removeAttribute('data-theme');
+    themeIcon.textContent = '🌙';
+  }
+}
+
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
   console.log('BookLore Recommendations app loaded');
+  loadTheme();
   checkAuthStatus();
 });
