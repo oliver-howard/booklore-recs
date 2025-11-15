@@ -339,4 +339,35 @@ Important:
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
     return this.addAmazonLinks(recommendations);
   }
+
+  /**
+   * Get generic recommendations based only on criteria (no reading history - for guest mode)
+   */
+  async getGenericRecommendations(
+    criteria: string,
+    maxRecommendations = 5
+  ): Promise<Recommendation[]> {
+    const systemMessage = `You are a book recommendation expert. Based on the specific criteria provided, suggest the best books that match the request. Focus on highly acclaimed, well-known, and widely recommended books in the relevant category.
+
+Return your response as a JSON array of recommendations with this exact structure:
+[
+  {
+    "title": "Book Title",
+    "author": "Author Name",
+    "reasoning": "Why this book matches the criteria"
+  }
+]
+
+Important:
+- Return ONLY the JSON array, no additional text
+- Use plain text only (no markdown, no special characters, no em dashes)
+- Provide exactly ${maxRecommendations} recommendations
+- Focus on highly-rated, popular, and critically acclaimed books`;
+
+    const userMessage = `User's criteria: ${criteria}`;
+
+    const response = await this.generateCompletion(systemMessage, userMessage);
+    const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
+    return this.addAmazonLinks(recommendations);
+  }
 }

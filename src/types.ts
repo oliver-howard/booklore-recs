@@ -71,3 +71,13 @@ export interface AIConfig {
 }
 
 export type RecommendationType = 'similar' | 'contrasting' | 'blindspots';
+
+// To Be Read (TBR) Types
+export interface TBRBook {
+  id: string;
+  title: string;
+  author: string;
+  reasoning?: string;
+  amazonUrl?: string;
+  addedAt: string;
+}

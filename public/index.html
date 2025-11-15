@@ -10,8 +10,8 @@
     <!-- Login Modal -->
     <div id="login-modal" class="modal">
       <div class="modal-content">
-        <h2>Login to BookLore</h2>
-        <p class="modal-subtitle">Enter your BookLore credentials to get started</p>
+        <h2>Welcome to BookLore AI</h2>
+        <p class="modal-subtitle">Choose how you'd like to proceed</p>
 
         <form id="login-form" onsubmit="handleLogin(event)">
           <div class="form-group">
@@ -19,7 +19,6 @@
             <input
               type="text"
               id="login-username"
-              required
               placeholder="Your BookLore username"
               autocomplete="username"
             />
@@ -30,7 +29,6 @@
             <input
               type="password"
               id="login-password"
-              required
               placeholder="Your BookLore password"
               autocomplete="current-password"
             />
@@ -45,11 +43,15 @@
 
           <div id="login-error" class="error hidden"></div>
 
-          <button type="submit" class="btn btn-primary btn-block">Login</button>
+          <button type="submit" class="btn btn-primary btn-block">Login with BookLore</button>
+          <button type="button" class="btn btn-secondary btn-block" onclick="handleGuestLogin()">
+            Continue as Guest
+          </button>
         </form>
 
         <p class="modal-note">
-          Your credentials are stored securely in your session and are never saved to disk.
+          <strong>BookLore Account:</strong> Get personalized recommendations based on your reading history.<br>
+          <strong>Guest Mode:</strong> Use only custom recommendations without BookLore integration.
         </p>
       </div>
     </div>
@@ -58,7 +60,7 @@
       <header>
         <div class="header-content">
           <div>
-            <h1>📚 BookLore AI Recommendations</h1>
+            <h1>BookLore AI Recommendations</h1>
             <p class="subtitle">Personalized book recommendations powered by AI</p>
           </div>
           <div id="user-info" class="user-info hidden">
@@ -80,6 +82,7 @@
         <button class="tab-button" data-tab="contrasting">Contrasting</button>
         <button class="tab-button" data-tab="blindspots">Blind Spots</button>
         <button class="tab-button" data-tab="custom">Custom</button>
+        <button class="tab-button" data-tab="tbr">To Be Read</button>
         <button class="tab-button" data-tab="stats">Statistics</button>
       </nav>
 
@@ -138,6 +141,17 @@
             Get Recommendations
           </button>
           <div id="custom-results" class="results"></div>
+        </div>
+
+        <!-- To Be Read -->
+        <div id="tbr-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>To Be Read List</h2>
+            <p>Books you want to read saved from recommendations</p>
+          </div>
+          <button class="btn btn-primary" onclick="loadTBR()">Refresh List</button>
+          <button class="btn btn-secondary" onclick="clearTBR()">Clear All</button>
+          <div id="tbr-results" class="results"></div>
         </div>
 
         <!-- Statistics -->

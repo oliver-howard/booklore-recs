@@ -3,6 +3,7 @@ const API_BASE = '/api';
 
 // Track authentication state
 let isAuthenticated = false;
+let isGuestMode = false;
 
 // Check authentication status
 async function checkAuthStatus() {
@@ -12,15 +13,48 @@ async function checkAuthStatus() {
 
     if (data.authenticated) {
       isAuthenticated = true;
+      isGuestMode = data.isGuest || false;
       hideLoginModal();
       showUserInfo(data.username);
+      updateUIForMode();
     } else {
       isAuthenticated = false;
+      isGuestMode = false;
       showLoginModal();
     }
   } catch (error) {
     console.error('Error checking auth status:', error);
     showLoginModal();
+  }
+}
+
+// Update UI based on guest mode or full auth
+function updateUIForMode() {
+  const guestRestrictedTabs = ['similar', 'contrasting', 'blindspots', 'tbr', 'stats'];
+
+  guestRestrictedTabs.forEach(tab => {
+    const button = document.querySelector(`[data-tab="${tab}"]`);
+    if (button) {
+      if (isGuestMode) {
+        button.disabled = true;
+        button.title = 'Login with BookLore to access this feature';
+        button.style.opacity = '0.5';
+        button.style.cursor = 'not-allowed';
+      } else {
+        button.disabled = false;
+        button.title = '';
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+      }
+    }
+  });
+
+  // If guest mode and on a restricted tab, switch to custom tab
+  if (isGuestMode) {
+    const activeTab = document.querySelector('.tab-button.active');
+    if (activeTab && guestRestrictedTabs.includes(activeTab.dataset.tab)) {
+      switchTab('custom');
+    }
   }
 }
 
@@ -58,6 +92,40 @@ function loadSavedUsername() {
   }
 }
 
+// Handle guest login
+async function handleGuestLogin() {
+  const errorDiv = document.getElementById('login-error');
+  errorDiv.classList.add('hidden');
+
+  try {
+    showLoading(true);
+
+    const response = await fetch(`${API_BASE}/auth/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Guest login failed');
+    }
+
+    // Guest login successful
+    isAuthenticated = true;
+    isGuestMode = true;
+
+    showUserInfo('Guest (Limited Features)');
+    hideLoginModal();
+    updateUIForMode();
+    showLoading(false);
+  } catch (error) {
+    showLoading(false);
+    errorDiv.textContent = error.message;
+    errorDiv.classList.remove('hidden');
+  }
+}
+
 // Handle login form submission
 async function handleLogin(event) {
   event.preventDefault();
@@ -66,6 +134,13 @@ async function handleLogin(event) {
   const password = document.getElementById('login-password').value;
   const rememberMe = document.getElementById('remember-me').checked;
   const errorDiv = document.getElementById('login-error');
+
+  // Validate inputs
+  if (!username || !password) {
+    errorDiv.textContent = 'Please enter both username and password';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
 
   errorDiv.classList.add('hidden');
 
@@ -86,6 +161,7 @@ async function handleLogin(event) {
 
     // Login successful
     isAuthenticated = true;
+    isGuestMode = false;
 
     // Save or clear username based on "Remember Me" checkbox
     if (rememberMe) {
@@ -96,6 +172,7 @@ async function handleLogin(event) {
 
     showUserInfo(data.username);
     hideLoginModal();
+    updateUIForMode();
     showLoading(false);
 
     // Clear form
@@ -113,6 +190,7 @@ async function handleLogout() {
     await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
 
     isAuthenticated = false;
+    isGuestMode = false;
     hideUserInfo();
     showLoginModal();
 
@@ -124,19 +202,35 @@ async function handleLogout() {
 }
 
 // Tab switching
+function switchTab(tabName) {
+  // Update active button
+  document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
+  const targetButton = document.querySelector(`[data-tab="${tabName}"]`);
+  if (targetButton) {
+    targetButton.classList.add('active');
+  }
+
+  // Update active pane
+  document
+    .querySelectorAll('.tab-pane')
+    .forEach((pane) => pane.classList.remove('active'));
+  document.getElementById(`${tabName}-tab`).classList.add('active');
+}
+
 document.querySelectorAll('.tab-button').forEach((button) => {
   button.addEventListener('click', () => {
+    // Don't allow clicking disabled tabs
+    if (button.disabled) {
+      return;
+    }
+
     const tabName = button.dataset.tab;
+    switchTab(tabName);
 
-    // Update active button
-    document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
-    button.classList.add('active');
-
-    // Update active pane
-    document
-      .querySelectorAll('.tab-pane')
-      .forEach((pane) => pane.classList.remove('active'));
-    document.getElementById(`${tabName}-tab`).classList.add('active');
+    // Auto-load TBR when switching to TBR tab
+    if (tabName === 'tbr' && isAuthenticated && !isGuestMode) {
+      loadTBR();
+    }
   });
 });
 
@@ -154,13 +248,27 @@ function showError(message) {
   const errorDiv = document.getElementById('error');
   errorDiv.textContent = message;
   errorDiv.classList.remove('hidden');
+  errorDiv.classList.remove('success');
   setTimeout(() => {
     errorDiv.classList.add('hidden');
   }, 5000);
 }
 
+function showSuccess(message) {
+  const errorDiv = document.getElementById('error');
+  errorDiv.textContent = message;
+  errorDiv.classList.remove('hidden');
+  errorDiv.classList.add('success');
+  setTimeout(() => {
+    errorDiv.classList.add('hidden');
+    errorDiv.classList.remove('success');
+  }, 3000);
+}
+
 function clearError() {
-  document.getElementById('error').classList.add('hidden');
+  const errorDiv = document.getElementById('error');
+  errorDiv.classList.add('hidden');
+  errorDiv.classList.remove('success');
 }
 
 // Similar recommendations
@@ -337,13 +445,22 @@ function displayRecommendations(recommendations, containerId) {
       <h3>${index + 1}. ${escapeHtml(rec.title)}</h3>
       <span class="author">by ${escapeHtml(rec.author)}</span>
       <p class="reasoning">${escapeHtml(rec.reasoning)}</p>
-      ${
-        rec.amazonUrl
-          ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
-               View on Amazon →
-             </a>`
-          : ''
-      }
+      <div class="card-actions">
+        ${
+          !isGuestMode
+            ? `<button class="btn btn-primary btn-sm" onclick="addToTBR('${escapeHtml(rec.title).replace(/'/g, "\\'")}', '${escapeHtml(rec.author).replace(/'/g, "\\'")}', '${escapeHtml(rec.reasoning).replace(/'/g, "\\'")}', '${rec.amazonUrl || ''}')">
+                 Add to TBR
+               </button>`
+            : ''
+        }
+        ${
+          rec.amazonUrl
+            ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
+                 View on Amazon →
+               </a>`
+            : ''
+        }
+      </div>
     </div>
   `
     )
@@ -513,6 +630,172 @@ function loadTheme() {
     themeIcon.textContent = '🌙';
   }
 }
+
+// ========== TBR (To Be Read) Functionality ==========
+
+// Helper to generate book ID
+function generateBookId(title, author) {
+  const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return normalized;
+}
+
+// Load TBR list
+async function loadTBR() {
+  if (!isAuthenticated) {
+    showError('Please log in first');
+    showLoginModal();
+    return;
+  }
+
+  if (isGuestMode) {
+    showError('TBR list is not available in guest mode');
+    return;
+  }
+
+  try {
+    clearError();
+    showLoading(true);
+
+    const response = await fetch(`${API_BASE}/tbr`);
+
+    if (!response.ok) {
+      throw new Error('Failed to load TBR list');
+    }
+
+    const data = await response.json();
+    displayTBR(data.tbr);
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Add book to TBR
+async function addToTBR(title, author, reasoning, amazonUrl) {
+  if (!isAuthenticated || isGuestMode) {
+    showError('TBR list is not available in guest mode');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/tbr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, author, reasoning, amazonUrl }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to add book to TBR');
+    }
+
+    showSuccess('Book added to TBR list!');
+    return true;
+  } catch (error) {
+    showError(error.message);
+    return false;
+  }
+}
+
+// Remove book from TBR
+async function removeFromTBR(bookId) {
+  if (!isAuthenticated || isGuestMode) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/tbr/${encodeURIComponent(bookId)}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to remove book from TBR');
+    }
+
+    // Reload TBR list
+    await loadTBR();
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
+// Clear entire TBR list
+async function clearTBR() {
+  if (!isAuthenticated || isGuestMode) {
+    return;
+  }
+
+  if (!confirm('Are you sure you want to clear your entire TBR list?')) {
+    return;
+  }
+
+  try {
+    showLoading(true);
+
+    const response = await fetch(`${API_BASE}/tbr`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to clear TBR list');
+    }
+
+    // Reload empty list
+    await loadTBR();
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Display TBR list
+function displayTBR(books) {
+  const container = document.getElementById('tbr-results');
+
+  if (!books || books.length === 0) {
+    container.innerHTML = '<p class="empty-state">Your To Be Read list is empty. Add books from recommendations!</p>';
+    return;
+  }
+
+  const html = books
+    .map(
+      (book) => `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>${escapeHtml(book.title)}</h3>
+          <span class="author">by ${escapeHtml(book.author)}</span>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="removeFromTBR('${book.id}')">
+          Remove
+        </button>
+      </div>
+      ${book.reasoning ? `<p class="reasoning">${escapeHtml(book.reasoning)}</p>` : ''}
+      <p class="text-light" style="font-size: 0.85rem; margin-top: 8px;">
+        Added: ${new Date(book.addedAt).toLocaleDateString()}
+      </p>
+      ${
+        book.amazonUrl
+          ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
+               View on Amazon →
+             </a>`
+          : ''
+      }
+    </div>
+  `
+    )
+    .join('');
+
+  container.innerHTML = html;
+}
+
+// ====================================================
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {

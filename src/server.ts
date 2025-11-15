@@ -5,7 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { RecommendationService } from './recommendation-service.js';
 import { validateConfig } from './config.js';
-import { Recommendation, ReadingAnalysis } from './types.js';
+import { Recommendation, ReadingAnalysis, TBRBook } from './types.js';
+import { UserDataService } from './user-data-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,18 +50,22 @@ declare module 'express-session' {
     initialized: boolean;
     bookloreUsername?: string;
     booklorePassword?: string;
+    isGuest?: boolean;
   }
 }
 
 // Store service instances per session
 const sessionServices = new Map<string, RecommendationService>();
 
+// Create user data service instance
+const userDataService = new UserDataService();
+
 // Initialize recommendation service for a user session
 async function getService(req: Request): Promise<RecommendationService> {
   const sessionId = req.sessionID;
 
-  // Check if user has provided credentials
-  if (!req.session.bookloreUsername || !req.session.booklorePassword) {
+  // Check if user is a guest or has provided credentials
+  if (!req.session.isGuest && (!req.session.bookloreUsername || !req.session.booklorePassword)) {
     throw new Error('BookLore credentials not configured. Please log in first.');
   }
 
@@ -70,17 +75,23 @@ async function getService(req: Request): Promise<RecommendationService> {
   if (!service) {
     console.log('Creating new service instance for session:', sessionId.substring(0, 8) + '...');
 
-    // Create service with user-specific credentials
+    // Create service with user-specific credentials (or undefined for guest)
     service = new RecommendationService(
       undefined, // AI config (use defaults)
       req.session.bookloreUsername,
       req.session.booklorePassword
     );
 
-    await service.initialize();
+    // Only initialize (authenticate with BookLore) if not a guest
+    if (!req.session.isGuest) {
+      await service.initialize();
+      console.log('Service initialized successfully for user:', req.session.bookloreUsername);
+    } else {
+      console.log('Service created for guest session (no BookLore authentication)');
+    }
+
     sessionServices.set(sessionId, service);
     req.session.initialized = true;
-    console.log('Service initialized successfully for user:', req.session.bookloreUsername);
   }
 
   return service;
@@ -102,9 +113,16 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.get(
   '/api/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.initialized && req.session.bookloreUsername) {
+    if (req.session.initialized && req.session.isGuest) {
       res.json({
         authenticated: true,
+        isGuest: true,
+        username: 'Guest',
+      });
+    } else if (req.session.initialized && req.session.bookloreUsername) {
+      res.json({
+        authenticated: true,
+        isGuest: false,
         username: req.session.bookloreUsername,
       });
     } else {
@@ -148,6 +166,30 @@ app.post(
       res.status(401).json({
         success: false,
         message: error instanceof Error ? error.message : 'Authentication failed',
+      });
+    }
+  })
+);
+
+// Guest login (no BookLore credentials required)
+app.post(
+  '/api/auth/guest',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      // Mark session as guest
+      req.session.isGuest = true;
+      req.session.initialized = true;
+
+      res.json({
+        success: true,
+        message: 'Guest session created',
+        username: 'Guest',
+        isGuest: true,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create guest session',
       });
     }
   })
@@ -242,6 +284,153 @@ app.post(
     res.json({ recommendations });
   })
 );
+
+// ========== TBR (To Be Read) Endpoints ==========
+
+// Get user's TBR list
+app.get(
+  '/api/tbr',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (req.session.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: 'TBR list is not available in guest mode',
+      });
+    }
+
+    if (!req.session.bookloreUsername) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const tbr = await userDataService.getTBR(req.session.bookloreUsername);
+    res.json({ tbr });
+  })
+);
+
+// Add book to TBR
+app.post(
+  '/api/tbr',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (req.session.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: 'TBR list is not available in guest mode',
+      });
+    }
+
+    if (!req.session.bookloreUsername) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { title, author, reasoning, amazonUrl } = req.body;
+
+    if (!title || !author) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and author are required',
+      });
+    }
+
+    // Generate ID for the book
+    const id = UserDataService.generateBookId(title, author);
+
+    try {
+      const book = await userDataService.addToTBR(req.session.bookloreUsername, {
+        id,
+        title,
+        author,
+        reasoning,
+        amazonUrl,
+      });
+
+      res.json({
+        success: true,
+        book,
+        message: 'Book added to TBR list',
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Book already in TBR list') {
+        return res.status(409).json({
+          success: false,
+          message: 'Book is already in your TBR list',
+        });
+      }
+      throw error;
+    }
+  })
+);
+
+// Remove book from TBR
+app.delete(
+  '/api/tbr/:bookId',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (req.session.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: 'TBR list is not available in guest mode',
+      });
+    }
+
+    if (!req.session.bookloreUsername) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { bookId } = req.params;
+
+    try {
+      await userDataService.removeFromTBR(req.session.bookloreUsername, bookId);
+      res.json({
+        success: true,
+        message: 'Book removed from TBR list',
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Book not found in TBR list') {
+        return res.status(404).json({
+          success: false,
+          message: 'Book not found in TBR list',
+        });
+      }
+      throw error;
+    }
+  })
+);
+
+// Clear entire TBR list
+app.delete(
+  '/api/tbr',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (req.session.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: 'TBR list is not available in guest mode',
+      });
+    }
+
+    if (!req.session.bookloreUsername) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    await userDataService.clearTBR(req.session.bookloreUsername);
+    res.json({
+      success: true,
+      message: 'TBR list cleared',
+    });
+  })
+);
+
+// ================================================
 
 // Serve index.html for all other routes (SPA support)
 app.get('*', (req: Request, res: Response) => {

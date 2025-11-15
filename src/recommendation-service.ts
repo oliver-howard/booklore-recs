@@ -4,11 +4,18 @@ import { Recommendation, ReadingAnalysis, RecommendationType, AIConfig } from '.
 import { config } from './config.js';
 
 export class RecommendationService {
-  private bookloreClient: BookLoreClient;
+  private bookloreClient?: BookLoreClient;
   private aiService: AIService;
+  private isGuestMode: boolean;
 
   constructor(aiConfig?: Partial<AIConfig>, bookloreUsername?: string, booklorePassword?: string) {
-    this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
+    // Only create BookLore client if credentials are provided
+    if (bookloreUsername && booklorePassword) {
+      this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
+      this.isGuestMode = false;
+    } else {
+      this.isGuestMode = true;
+    }
     this.aiService = new AIService(aiConfig);
   }
 
@@ -16,7 +23,9 @@ export class RecommendationService {
    * Initialize the service by authenticating with BookLore
    */
   async initialize(): Promise<void> {
-    await this.bookloreClient.authenticate();
+    if (this.bookloreClient) {
+      await this.bookloreClient.authenticate();
+    }
   }
 
   /**
@@ -26,10 +35,14 @@ export class RecommendationService {
     type: RecommendationType = 'similar',
     maxRecommendations?: number
   ): Promise<Recommendation[] | ReadingAnalysis> {
+    if (this.isGuestMode) {
+      throw new Error('This feature requires a BookLore account. Please log in with your BookLore credentials or use Custom recommendations.');
+    }
+
     const max = maxRecommendations || config.ai.maxRecommendations;
 
     // Fetch user's reading history
-    const readings = await this.bookloreClient.getUserReadingHistory();
+    const readings = await this.bookloreClient!.getUserReadingHistory();
 
     if (readings.length === 0) {
       throw new Error('No reading history found. Please read and rate some books first.');
@@ -57,7 +70,14 @@ export class RecommendationService {
     maxRecommendations?: number
   ): Promise<Recommendation[]> {
     const max = maxRecommendations || config.ai.maxRecommendations;
-    const readings = await this.bookloreClient.getUserReadingHistory();
+
+    // If guest mode, use generic recommendations without reading history
+    if (this.isGuestMode) {
+      console.log('\nGuest mode: Generating recommendations based on criteria only...\n');
+      return this.aiService.getGenericRecommendations(criteria, max);
+    }
+
+    const readings = await this.bookloreClient!.getUserReadingHistory();
 
     if (readings.length === 0) {
       throw new Error('No reading history found. Please read and rate some books first.');
@@ -72,10 +92,14 @@ export class RecommendationService {
    * Get user statistics
    */
   async getUserStats() {
-    const readings = await this.bookloreClient.getUserReadingHistory();
+    if (this.isGuestMode) {
+      throw new Error('Statistics are not available in guest mode. Please log in with your BookLore credentials.');
+    }
+
+    const readings = await this.bookloreClient!.getUserReadingHistory();
     const ratedBooks = readings.filter((r) => r.rating);
-    const genres = await this.bookloreClient.getUserFavoriteGenres();
-    const authors = await this.bookloreClient.getUserFavoriteAuthors();
+    const genres = await this.bookloreClient!.getUserFavoriteGenres();
+    const authors = await this.bookloreClient!.getUserFavoriteAuthors();
 
     return {
       totalBooksRead: readings.length,
