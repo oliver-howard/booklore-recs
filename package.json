@@ -1,0 +1,34 @@
+{
+  "name": "booklore-ai-recommendations",
+  "version": "1.0.0",
+  "description": "AI-powered book recommendation system using BookLore API",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "recommend": "tsx src/index.ts"
+  },
+  "keywords": [
+    "booklore",
+    "ai",
+    "recommendations",
+    "books",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.4.5",
+    "openai": "^4.80.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
