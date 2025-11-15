@@ -41,6 +41,7 @@ export const RecommendationSchema = z.object({
   author: z.string(),
   reasoning: z.string(),
   estimatedMatch: z.number().min(0).max(100).optional(),
+  amazonUrl: z.string().optional(), // Amazon search/purchase link
 });
 
 export const BlindSpotSchema = z.object({

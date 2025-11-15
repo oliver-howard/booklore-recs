@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading } from './types.js';
 import { config } from './config.js';
+import { getAmazonSearchUrl } from './utils.js';
 
 export class AIService {
   private provider: AIProvider;
@@ -185,6 +186,16 @@ export class AIService {
   }
 
   /**
+   * Add Amazon search URLs to recommendations
+   */
+  private addAmazonLinks(recommendations: Recommendation[]): Recommendation[] {
+    return recommendations.map((rec) => ({
+      ...rec,
+      amazonUrl: getAmazonSearchUrl(rec.title, rec.author),
+    }));
+  }
+
+  /**
    * Get similar book recommendations
    */
   async getSimilarRecommendations(
@@ -211,7 +222,8 @@ Important:
     const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
-    return this.cleanAndParseJSON<Recommendation[]>(response);
+    const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
+    return this.addAmazonLinks(recommendations);
   }
 
   /**
@@ -244,7 +256,8 @@ Important:
     const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
-    return this.cleanAndParseJSON<Recommendation[]>(response);
+    const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
+    return this.addAmazonLinks(recommendations);
   }
 
   /**
@@ -284,7 +297,15 @@ Important:
     const userMessage = `Analyze this reading history:\n\n${this.formatReadingHistory(userReadings)}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
-    return this.cleanAndParseJSON<ReadingAnalysis>(response);
+    const analysis = this.cleanAndParseJSON<ReadingAnalysis>(response);
+
+    // Add Amazon links to blind spot recommendations
+    analysis.blindSpots = analysis.blindSpots.map((spot) => ({
+      ...spot,
+      recommendations: this.addAmazonLinks(spot.recommendations),
+    }));
+
+    return analysis;
   }
 
   /**
@@ -315,6 +336,7 @@ Important:
     const userMessage = `User's criteria: ${criteria}\n\nReading history:\n\n${this.formatReadingHistory(userReadings)}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
-    return this.cleanAndParseJSON<Recommendation[]>(response);
+    const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
+    return this.addAmazonLinks(recommendations);
   }
 }

@@ -315,6 +315,13 @@ function displayRecommendations(recommendations, containerId) {
       <h3>${index + 1}. ${escapeHtml(rec.title)}</h3>
       <span class="author">by ${escapeHtml(rec.author)}</span>
       <p class="reasoning">${escapeHtml(rec.reasoning)}</p>
+      ${
+        rec.amazonUrl
+          ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
+               View on Amazon →
+             </a>`
+          : ''
+      }
     </div>
   `
     )
@@ -364,6 +371,13 @@ function displayBlindspots(analysis, containerId) {
                 <h3>${escapeHtml(rec.title)}</h3>
                 <span class="author">by ${escapeHtml(rec.author)}</span>
                 <p class="reasoning">${escapeHtml(rec.reasoning)}</p>
+                ${
+                  rec.amazonUrl
+                    ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
+                         View on Amazon →
+                       </a>`
+                    : ''
+                }
               </div>
             `
               )

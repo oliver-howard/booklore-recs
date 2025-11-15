@@ -300,6 +300,25 @@ header h1 {
 .card .reasoning {
   color: var(--text);
   line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.amazon-link {
+  margin-top: 12px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ff9900;
+  color: #232f3e;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.amazon-link:hover {
+  background: #ffad33;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
 .stats-grid {

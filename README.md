@@ -4,6 +4,10 @@ An AI-powered book recommendation system that uses your reading history and rati
 
 ## Features
 
+- **Dual Interface:**
+  - **Web Application**: User-friendly browser interface with session-based authentication
+  - **CLI**: Fast command-line interface for terminal users
+
 - **Multiple Recommendation Types:**
   - **Similar Books**: Get recommendations based on books you've enjoyed
   - **Contrasting Perspectives**: Discover books that challenge your current viewpoints
@@ -15,7 +19,13 @@ An AI-powered book recommendation system that uses your reading history and rati
   - OpenAI ChatGPT
   - Google Gemini
 
+- **Amazon Integration**: Direct links to purchase recommended books on Amazon
+
 - **Reading Statistics**: View your reading patterns, favorite genres, and top authors
+
+- **Secure Authentication**:
+  - Web mode: Login via UI with session-based credential isolation
+  - CLI mode: Credentials via environment variables
 
 ## Installation
 
@@ -35,8 +45,7 @@ cp .env.example .env
 ```env
 # BookLore API Configuration
 BOOKLORE_API_URL=https://api.booklore.app
-BOOKLORE_USERNAME=your_username
-BOOKLORE_PASSWORD=your_password
+# Note: BookLore credentials are entered via web UI login, not here
 
 # AI Provider Configuration (choose one)
 ANTHROPIC_API_KEY=your_anthropic_key
@@ -51,6 +60,9 @@ DEFAULT_AI_PROVIDER=google
 # Web Server Configuration
 PORT=3000
 SESSION_SECRET=your-random-secret-string-here
+
+# Optional: Amazon Affiliate Integration
+# AMAZON_AFFILIATE_TAG=your-affiliate-tag
 ```
 
 4. Start the container:
@@ -60,18 +72,23 @@ docker-compose up -d
 
 5. Access the web interface at [http://localhost:3000](http://localhost:3000)
 
-6. Check container health:
+6. Log in with your BookLore credentials:
+   - Enter your BookLore username and password
+   - Credentials are stored securely in your session
+   - Each user session is isolated for security
+
+7. Check container health:
 ```bash
 docker-compose ps
 docker-compose logs -f
 ```
 
-7. Stop the container:
+8. Stop the container:
 ```bash
 docker-compose down
 ```
 
-### Option 2: Local Installation (CLI Only)
+### Option 2: Local Installation (CLI and Web)
 
 1. Clone the repository:
 ```bash
@@ -103,7 +120,7 @@ The web interface provides an easy-to-use dashboard for getting recommendations:
 
 **Start the web server (local development):**
 ```bash
-npm run web
+npm run web:dev
 ```
 
 **Or run in production mode:**
@@ -113,20 +130,28 @@ npm run web:start
 ```
 
 **Access the interface:**
-- Open your browser to [http://localhost:3000](http://localhost:3000)
-- Click on different tabs to explore:
-  - **Similar Books**: Get recommendations based on your reading history
-  - **Contrasting**: Discover challenging perspectives
-  - **Blind Spots**: Analyze your reading patterns
-  - **Custom**: Enter specific criteria for recommendations
-  - **Statistics**: View your reading stats
+1. Open your browser to [http://localhost:3000](http://localhost:3000)
+2. **Log in** with your BookLore credentials (username and password)
+3. Click on different tabs to explore:
+   - **Similar Books**: Get recommendations based on your reading history
+   - **Contrasting**: Discover challenging perspectives
+   - **Blind Spots**: Analyze your reading patterns
+   - **Custom**: Enter specific criteria for recommendations
+   - **Statistics**: View your reading stats
+
+**Amazon Links:**
+- Each recommendation includes a "View on Amazon →" button
+- Links to Amazon search results for the book
+- Optionally configure affiliate tag in `.env` for monetization
 
 **API Endpoints:**
 
 If you want to integrate with the API directly:
 
 - `GET /api/health` - Health check
-- `POST /api/auth/init` - Initialize session
+- `GET /api/auth/status` - Check authentication status
+- `POST /api/auth/login` - Login with BookLore credentials
+- `POST /api/auth/logout` - Logout and clear session
 - `GET /api/stats` - Get reading statistics
 - `POST /api/recommendations/similar` - Get similar book recommendations
 - `POST /api/recommendations/contrasting` - Get contrasting recommendations
@@ -135,7 +160,9 @@ If you want to integrate with the API directly:
 
 ### CLI Commands (Command Line Interface)
 
-You can also use the CLI for quick terminal-based access:
+You can also use the CLI for quick terminal-based access.
+
+**Note:** For CLI mode, you must configure `BOOKLORE_USERNAME` and `BOOKLORE_PASSWORD` in your `.env` file.
 
 **Get similar book recommendations:**
 ```bash
@@ -239,19 +266,24 @@ Provides a comprehensive analysis of your reading patterns, including:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BOOKLORE_API_URL` | BookLore API base URL | `https://your.booklore-url.com/api/v1` |
-| `BOOKLORE_USERNAME` | Your BookLore username | Required |
-| `BOOKLORE_PASSWORD` | Your BookLore password | Required |
-| `DEFAULT_AI_PROVIDER` | AI provider to use | `anthropic` |
-| `ANTHROPIC_API_KEY` | Anthropic API key | Required if using Claude |
-| `OPENAI_API_KEY` | OpenAI API key | Required if using ChatGPT |
-| `GOOGLE_API_KEY` | Google API key | Required if using Gemini |
-| `AI_TEMPERATURE` | Creativity level (0.0-1.0) | `0.7` |
-| `MAX_RECOMMENDATIONS` | Number of recommendations | `5` |
-| `PORT` | Web server port | `3000` |
-| `SESSION_SECRET` | Session encryption secret | Random string (required for web) |
+| Variable | Description | Default | Required For |
+|----------|-------------|---------|--------------|
+| `BOOKLORE_API_URL` | BookLore API base URL | `https://api.booklore.app` | All modes |
+| `BOOKLORE_USERNAME` | Your BookLore username | - | CLI only |
+| `BOOKLORE_PASSWORD` | Your BookLore password | - | CLI only |
+| `DEFAULT_AI_PROVIDER` | AI provider to use | `anthropic` | All modes |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - | If using Claude |
+| `OPENAI_API_KEY` | OpenAI API key | - | If using ChatGPT |
+| `GOOGLE_API_KEY` | Google API key | - | If using Gemini |
+| `AI_TEMPERATURE` | Creativity level (0.0-1.0) | `0.7` | Optional |
+| `MAX_RECOMMENDATIONS` | Number of recommendations | `5` | Optional |
+| `PORT` | Web server port | `3000` | Web mode |
+| `SESSION_SECRET` | Session encryption secret | Random string | Web mode (production) |
+| `AMAZON_AFFILIATE_TAG` | Amazon affiliate tag | - | Optional |
+
+**Note on Authentication:**
+- **Web mode**: BookLore credentials are entered via UI login, not `.env`
+- **CLI mode**: BookLore credentials must be in `.env` file
 
 ### Custom AI Models
 
@@ -270,6 +302,11 @@ GOOGLE_MODEL=gemini-pro
 The `BookLoreClient` class handles all interactions with the BookLore API:
 
 ```typescript
+// With dynamic credentials (web mode)
+const client = new BookLoreClient(username, password);
+await client.authenticate();
+
+// With env credentials (CLI mode)
 const client = new BookLoreClient();
 await client.authenticate();
 
@@ -306,6 +343,15 @@ const analysis = await aiService.analyzeReadingBlindSpots(readings);
 The `RecommendationService` combines BookLore and AI:
 
 ```typescript
+// With dynamic credentials (web mode)
+const service = new RecommendationService(
+  undefined,  // AI config (use defaults)
+  username,
+  password
+);
+await service.initialize();
+
+// With env credentials (CLI mode)
 const service = new RecommendationService();
 await service.initialize();
 
@@ -328,11 +374,15 @@ const custom = await service.getCustomRecommendations(
    Based on your enjoyment of "The Martian," this book shares the same blend of
    hard science fiction, humor, and a protagonist using scientific problem-solving
    to survive against impossible odds.
+   [View on Amazon →]
 
 2. "Recursion" by Blake Crouch
    Given your high rating of "Dark Matter," you'll appreciate Crouch's exploration
    of another mind-bending scientific concept with emotional depth and thriller pacing.
+   [View on Amazon →]
 ```
+
+**Note:** Each recommendation includes an Amazon search link for easy purchasing.
 
 ### Blind Spots Analysis
 ```
@@ -365,14 +415,17 @@ booklore_recs/
 │   ├── types.ts                    # TypeScript type definitions
 │   ├── booklore-client.ts          # BookLore API client
 │   ├── ai-service.ts               # Multi-LLM AI service
-│   └── recommendation-service.ts   # Main recommendation logic
+│   ├── recommendation-service.ts   # Main recommendation logic
+│   └── utils.ts                    # Utility functions (Amazon links)
 ├── public/
-│   ├── index.html                  # Web interface
+│   ├── index.html                  # Web interface with login modal
 │   ├── styles.css                  # Styles
 │   └── app.js                      # Frontend JavaScript
 ├── Dockerfile                      # Container definition
 ├── docker-compose.yml              # Docker Compose configuration
 ├── .dockerignore                   # Docker ignore file
+├── CLAUDE.md                       # AI assistant instructions
+├── QUICKSTART.md                   # Quick start guide
 ├── package.json
 ├── tsconfig.json
 ├── .env.example
@@ -418,9 +471,18 @@ Implements robust JSON parsing like Unearthed:
 ## Troubleshooting
 
 ### Authentication Issues
-- Verify BookLore credentials in `.env`
+
+**Web Mode:**
+- Ensure you're entering correct BookLore credentials in the login modal
+- Check browser console for any error messages
+- Verify the BookLore API URL in `.env`
+- Try logging out and back in
+
+**CLI Mode:**
+- Verify BookLore credentials in `.env` file
 - Check if the API URL is correct
 - Ensure your account is active
+- Run with `DEBUG=true` for detailed logging
 
 ### API Key Issues
 - Confirm the correct API key for your chosen provider
@@ -509,12 +571,16 @@ server {
 
 Potential features to add:
 - [x] Web interface for easier use
+- [x] Session-based authentication for web mode
+- [x] Amazon purchase links
+- [ ] Amazon Affiliate integration for monetization
+- [ ] Direct Amazon Product API integration (book covers, prices)
 - [ ] Export recommendations to various formats
 - [ ] Integration with Goodreads
 - [ ] Caching to reduce API costs
 - [ ] Recommendation history tracking
 - [ ] Social features (share recommendations)
-- [ ] User authentication (multi-user support)
+- [ ] Multi-user support with account management
 - [ ] Recommendation feedback and learning
 
 ## Inspiration
