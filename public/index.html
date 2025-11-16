@@ -241,8 +241,28 @@
               <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
                 Remove Data
               </button>
-            </div>
           </div>
+
+          <!-- Data Source Preference -->
+          <div class="settings-section hidden" id="data-source-section">
+            <h3>Active Data Source</h3>
+            <p class="settings-description">
+              You have connected BookLore and imported Goodreads data. Choose which source Book Rex should use for recommendations.
+            </p>
+            <div class="data-source-toggle">
+              <button type="button" class="toggle-option" data-source="auto" onclick="setDataSourcePreference('auto')">
+                Auto
+              </button>
+              <button type="button" class="toggle-option" data-source="booklore" onclick="setDataSourcePreference('booklore')">
+                BookLore
+              </button>
+              <button type="button" class="toggle-option" data-source="goodreads" onclick="setDataSourcePreference('goodreads')">
+                Goodreads
+              </button>
+            </div>
+            <p id="data-source-summary" class="settings-description small-text"></p>
+          </div>
+        </div>
           
           <br>  
 

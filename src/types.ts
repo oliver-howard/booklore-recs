@@ -72,6 +72,8 @@ export interface AIConfig {
 
 export type RecommendationType = 'similar' | 'contrasting' | 'blindspots';
 
+export type DataSourcePreference = 'auto' | 'booklore' | 'goodreads';
+
 // To Be Read (TBR) Types
 export interface TBRBook {
   id: string;

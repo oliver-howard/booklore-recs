@@ -8,6 +8,8 @@ let hasBookLore = false;
 let hasGoodreads = false;
 let notificationTimeout;
 let tbrCache = [];
+let dataSourcePreference = 'auto';
+let canToggleDataSource = false;
 
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
@@ -53,6 +55,9 @@ function clearAppState() {
   notificationElement?.classList.add('hidden');
 
   tbrCache = [];
+  dataSourcePreference = 'auto';
+  canToggleDataSource = false;
+  updateDataSourceToggle();
   updateHeroPreviewCard();
 }
 
@@ -68,11 +73,14 @@ async function checkAuthStatus() {
       hasReadingHistory = data.hasReadingHistory || false;
       hasBookLore = data.hasBookLore || false;
       hasGoodreads = data.hasGoodreads || false;
+      dataSourcePreference = data.dataSourcePreference || 'auto';
+      canToggleDataSource = !!data.canChooseDataSource;
       hideLoginModal();
 
       showUserInfo(data.username);
       updateUIForMode();
       updateSettingsUI(data);
+      updateDataSourceToggle();
 
       if (isNewlyAuthenticated) {
         loadTBR();
@@ -270,6 +278,82 @@ function showStats() {
 function goToSimilarRecommendations() {
   switchTab('similar');
   getSimilarRecommendations();
+}
+
+function dataSourceSummaryText() {
+  if (dataSourcePreference === 'booklore') {
+    return 'Currently using BookLore data for recommendations.';
+  }
+  if (dataSourcePreference === 'goodreads') {
+    return 'Currently using Goodreads data for recommendations.';
+  }
+  if (hasBookLore) {
+    return 'Using BookLore data when available, otherwise falling back to Goodreads.';
+  }
+  if (hasGoodreads) {
+    return 'Using your Goodreads import for recommendations.';
+  }
+  return 'Connect BookLore or upload Goodreads data to begin.';
+}
+
+function updateDataSourceToggle() {
+  const section = document.getElementById('data-source-section');
+  const summary = document.getElementById('data-source-summary');
+
+  if (!section) {
+    return;
+  }
+
+  if (!canToggleDataSource) {
+    section.classList.add('hidden');
+    if (summary) {
+      summary.textContent = dataSourceSummaryText();
+    }
+    return;
+  }
+
+  section.classList.remove('hidden');
+  if (summary) {
+    summary.textContent = dataSourceSummaryText();
+  }
+
+  document.querySelectorAll('.toggle-option').forEach((button) => {
+    const source = button.dataset.source;
+    if (!source) {
+      return;
+    }
+    button.classList.toggle(
+      'active',
+      source === dataSourcePreference
+    );
+  });
+}
+
+async function setDataSourcePreference(preference) {
+  if (preference === dataSourcePreference) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/data-source`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preference }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      showNotification(data.message || 'Failed to update data source', 'error');
+      return;
+    }
+
+    showNotification(data.message || 'Data source updated', 'success');
+    await checkAuthStatus();
+  } catch (error) {
+    console.error('Error updating data source preference:', error);
+    showNotification('Failed to update data source preference. Please try again.', 'error');
+  }
 }
 
 async function saveBookLoreCredentials(event) {

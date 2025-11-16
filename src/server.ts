@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { RecommendationService } from './recommendation-service.js';
 import { validateConfig } from './config.js';
-import { Recommendation, ReadingAnalysis, TBRBook, UserReading } from './types.js';
+import { Recommendation, ReadingAnalysis, TBRBook, UserReading, DataSourcePreference } from './types.js';
 import { DatabaseService } from './database.js';
 import { GoodreadsParser } from './goodreads-parser.js';
 
@@ -82,7 +82,8 @@ async function getService(req: Request): Promise<RecommendationService> {
       undefined, // AI config (use defaults)
       user.bookloreUsername,
       user.booklorePassword,
-      user.goodreadsReadings
+      user.goodreadsReadings,
+      user.dataSourcePreference
     );
 
     // Only initialize (authenticate with BookLore) if credentials are configured
@@ -123,6 +124,7 @@ app.get(
         const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
         const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
         const hasReadingHistory = hasBookLore || hasGoodreads;
+        const canChooseDataSource = hasBookLore && hasGoodreads;
 
         res.json({
           authenticated: true,
@@ -131,6 +133,8 @@ app.get(
           hasBookLore,
           hasGoodreads,
           booksCount: user.goodreadsReadings?.length || 0,
+          dataSourcePreference: user.dataSourcePreference || 'auto',
+          canChooseDataSource,
         });
         return;
       }
@@ -348,6 +352,61 @@ app.delete(
         message: error instanceof Error ? error.message : 'Failed to remove Goodreads data',
       });
     }
+  })
+);
+
+// Update preferred data source
+app.post(
+  '/api/settings/data-source',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { preference } = req.body as { preference: DataSourcePreference };
+
+    if (!preference || !['auto', 'booklore', 'goodreads'].includes(preference)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid data source preference',
+      });
+    }
+
+    const user = DatabaseService.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
+    const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
+
+    if (preference === 'booklore' && !hasBookLore) {
+      return res.status(400).json({
+        success: false,
+        message: 'Connect BookLore to use it as a data source.',
+      });
+    }
+
+    if (preference === 'goodreads' && !hasGoodreads) {
+      return res.status(400).json({
+        success: false,
+        message: 'Upload Goodreads data to use it as a data source.',
+      });
+    }
+
+    DatabaseService.updateDataSourcePreference(req.session.userId, preference);
+    sessionServices.delete(req.sessionID);
+
+    res.json({
+      success: true,
+      message: 'Data source preference updated',
+    });
   })
 );
 

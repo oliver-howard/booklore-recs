@@ -741,6 +741,41 @@ body {
   background: var(--clr-surface-tonal-a0);
 }
 
+.data-source-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.toggle-option {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.toggle-option:hover {
+  transform: translateY(-1px);
+}
+
+.toggle-option.active {
+  background: var(--primary);
+  color: var(--clr-dark-a0);
+  border-color: transparent;
+  box-shadow: var(--shadow);
+}
+
+.settings-description.small-text {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-top: 12px;
+}
+
 .results {
   margin-top: 24px;
 }

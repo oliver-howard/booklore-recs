@@ -1,28 +1,34 @@
 import { BookLoreClient } from './booklore-client.js';
 import { AIService } from './ai-service.js';
-import { Recommendation, ReadingAnalysis, RecommendationType, AIConfig, UserReading, TBRBook } from './types.js';
+import {
+  Recommendation,
+  ReadingAnalysis,
+  RecommendationType,
+  AIConfig,
+  UserReading,
+  TBRBook,
+  DataSourcePreference,
+} from './types.js';
 import { config } from './config.js';
 
 export class RecommendationService {
   private bookloreClient?: BookLoreClient;
   private aiService: AIService;
-  private isGuestMode: boolean;
   private guestReadings?: UserReading[];
+  private dataSourcePreference: DataSourcePreference;
 
   constructor(
     aiConfig?: Partial<AIConfig>,
     bookloreUsername?: string,
     booklorePassword?: string,
-    guestReadings?: UserReading[]
+    guestReadings?: UserReading[],
+    dataSourcePreference: DataSourcePreference = 'auto'
   ) {
-    // Only create BookLore client if credentials are provided
     if (bookloreUsername && booklorePassword) {
       this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
-      this.isGuestMode = false;
-    } else {
-      this.isGuestMode = true;
-      this.guestReadings = guestReadings;
     }
+    this.guestReadings = guestReadings;
+    this.dataSourcePreference = dataSourcePreference || 'auto';
     this.aiService = new AIService(aiConfig);
   }
 
@@ -44,25 +50,9 @@ export class RecommendationService {
     tbrBooks?: TBRBook[]
   ): Promise<Recommendation[] | ReadingAnalysis> {
     const max = maxRecommendations || config.ai.maxRecommendations;
-    let readings: UserReading[];
-
-    // If guest mode with CSV data, use that
-    if (this.isGuestMode && this.guestReadings && this.guestReadings.length > 0) {
-      readings = this.guestReadings;
-      console.log(`\nGuest mode with CSV: Analyzing ${readings.length} books from Goodreads...\n`);
-    } else if (this.isGuestMode) {
-      // Guest mode without CSV data
-      throw new Error('This feature requires reading history. Please upload a Goodreads CSV or log in with your BookLore credentials.');
-    } else {
-      // BookLore mode
-      readings = await this.bookloreClient!.getUserReadingHistory();
-
-      if (readings.length === 0) {
-        throw new Error('No reading history found. Please read and rate some books first.');
-      }
-
-      console.log(`\nAnalyzing ${readings.length} books from your reading history...\n`);
-    }
+    const source = this.determineDataSource();
+    const readings = await this.getReadingsForSource(source);
+    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
 
     switch (type) {
       case 'similar':
@@ -85,26 +75,17 @@ export class RecommendationService {
     tbrBooks?: TBRBook[]
   ): Promise<Recommendation[]> {
     const max = maxRecommendations || config.ai.maxRecommendations;
+    const hasBookLore = !!this.bookloreClient;
+    const hasGoodreads = !!(this.guestReadings && this.guestReadings.length > 0);
 
-    // If guest mode with CSV data, use personalized recommendations
-    if (this.isGuestMode && this.guestReadings && this.guestReadings.length > 0) {
-      console.log(`\nGuest mode with CSV: Analyzing ${this.guestReadings.length} books from Goodreads...\n`);
-      return this.aiService.getPersonalizedRecommendations(this.guestReadings, criteria, tbrBooks, max);
-    }
-
-    // If guest mode without CSV data, use generic recommendations
-    if (this.isGuestMode) {
+    if (!hasBookLore && !hasGoodreads) {
       console.log('\nGuest mode: Generating recommendations based on criteria only...\n');
       return this.aiService.getGenericRecommendations(criteria, tbrBooks, max);
     }
 
-    const readings = await this.bookloreClient!.getUserReadingHistory();
-
-    if (readings.length === 0) {
-      throw new Error('No reading history found. Please read and rate some books first.');
-    }
-
-    console.log(`\nAnalyzing ${readings.length} books from your reading history...\n`);
+    const source = this.determineDataSource();
+    const readings = await this.getReadingsForSource(source);
+    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
 
     return this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max);
   }
@@ -113,18 +94,15 @@ export class RecommendationService {
    * Get user statistics
    */
   async getUserStats() {
-    let readings: UserReading[];
+    const source = this.determineDataSource();
+    const readings = await this.getReadingsForSource(source);
     let genres: string[] = [];
     let authors: string[] = [];
 
-    // If guest mode with CSV data, calculate from CSV
-    if (this.isGuestMode && this.guestReadings && this.guestReadings.length > 0) {
-      readings = this.guestReadings;
-
-      // Calculate top genres from CSV data
+    if (source === 'goodreads') {
       const genreCount = new Map<string, number>();
-      readings.forEach(reading => {
-        reading.book.genres?.forEach(genre => {
+      readings.forEach((reading) => {
+        reading.book.genres?.forEach((genre) => {
           genreCount.set(genre, (genreCount.get(genre) || 0) + 1);
         });
       });
@@ -132,9 +110,8 @@ export class RecommendationService {
         .sort((a, b) => b[1] - a[1])
         .map(([genre]) => genre);
 
-      // Calculate top authors from CSV data
       const authorCount = new Map<string, number>();
-      readings.forEach(reading => {
+      readings.forEach((reading) => {
         const author = reading.book.author;
         if (author) {
           authorCount.set(author, (authorCount.get(author) || 0) + 1);
@@ -143,11 +120,7 @@ export class RecommendationService {
       authors = Array.from(authorCount.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([author]) => author);
-    } else if (this.isGuestMode) {
-      throw new Error('Statistics require reading history. Please upload a Goodreads CSV or log in with your BookLore credentials.');
     } else {
-      // BookLore mode
-      readings = await this.bookloreClient!.getUserReadingHistory();
       genres = await this.bookloreClient!.getUserFavoriteGenres();
       authors = await this.bookloreClient!.getUserFavoriteAuthors();
     }
@@ -207,5 +180,51 @@ export class RecommendationService {
     });
 
     return output;
+  }
+
+  private hasBookLoreCredentials(): boolean {
+    return !!this.bookloreClient;
+  }
+
+  private hasGoodreadsReadings(): boolean {
+    return !!(this.guestReadings && this.guestReadings.length > 0);
+  }
+
+  private determineDataSource(): 'booklore' | 'goodreads' {
+    const hasBookLore = this.hasBookLoreCredentials();
+    const hasGoodreads = this.hasGoodreadsReadings();
+    const preference = this.dataSourcePreference || 'auto';
+
+    if (preference === 'booklore') {
+      if (hasBookLore) return 'booklore';
+      if (hasGoodreads) return 'goodreads';
+    } else if (preference === 'goodreads') {
+      if (hasGoodreads) return 'goodreads';
+      if (hasBookLore) return 'booklore';
+    } else {
+      if (hasBookLore) return 'booklore';
+      if (hasGoodreads) return 'goodreads';
+    }
+
+    throw new Error('No reading history configured. Please connect BookLore or upload a Goodreads CSV.');
+  }
+
+  private async getReadingsForSource(source: 'booklore' | 'goodreads'): Promise<UserReading[]> {
+    if (source === 'booklore') {
+      if (!this.bookloreClient) {
+        throw new Error('BookLore credentials not configured.');
+      }
+      const readings = await this.bookloreClient.getUserReadingHistory();
+      if (!readings || readings.length === 0) {
+        throw new Error('No reading history found in BookLore. Please read and rate some books first.');
+      }
+      return readings;
+    }
+
+    if (!this.guestReadings || this.guestReadings.length === 0) {
+      throw new Error('No Goodreads data available. Please upload your Goodreads CSV file.');
+    }
+
+    return this.guestReadings;
   }
 }

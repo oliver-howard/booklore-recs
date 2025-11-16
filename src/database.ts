@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { TBRBook, UserReading } from './types.js';
+import { TBRBook, UserReading, DataSourcePreference } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +25,8 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     booklore_username TEXT,
     booklore_password TEXT,
-    goodreads_readings TEXT
+    goodreads_readings TEXT,
+    data_source_preference TEXT NOT NULL DEFAULT 'auto'
   );
 
   CREATE TABLE IF NOT EXISTS tbr_books (
@@ -43,6 +44,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tbr_user_id ON tbr_books(user_id);
 `);
 
+try {
+  db.exec(`ALTER TABLE users ADD COLUMN data_source_preference TEXT NOT NULL DEFAULT 'auto'`);
+} catch (error: any) {
+  if (!String(error?.message).includes('duplicate column name')) {
+    throw error;
+  }
+}
+
 export interface User {
   id: number;
   username: string;
@@ -50,6 +59,7 @@ export interface User {
   bookloreUsername?: string;
   booklorePassword?: string;
   goodreadsReadings?: UserReading[];
+  dataSourcePreference: DataSourcePreference;
 }
 
 export class DatabaseService {
@@ -72,8 +82,8 @@ export class DatabaseService {
 
     try {
       const stmt = db.prepare(`
-        INSERT INTO users (username, password_hash)
-        VALUES (?, ?)
+        INSERT INTO users (username, password_hash, data_source_preference)
+        VALUES (?, ?, 'auto')
       `);
 
       const result = stmt.run(username, passwordHash);
@@ -82,6 +92,7 @@ export class DatabaseService {
         id: result.lastInsertRowid as number,
         username,
         createdAt: new Date().toISOString(),
+        dataSourcePreference: 'auto',
       };
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT') {
@@ -97,7 +108,8 @@ export class DatabaseService {
   static async authenticateUser(username: string, password: string): Promise<User> {
     const stmt = db.prepare(`
       SELECT id, username, password_hash, created_at,
-             booklore_username, booklore_password, goodreads_readings
+             booklore_username, booklore_password, goodreads_readings,
+             data_source_preference
       FROM users
       WHERE username = ?
     `);
@@ -121,6 +133,7 @@ export class DatabaseService {
       bookloreUsername: row.booklore_username || undefined,
       booklorePassword: row.booklore_password || undefined,
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
+      dataSourcePreference: row.data_source_preference || 'auto',
     };
   }
 
@@ -130,7 +143,8 @@ export class DatabaseService {
   static getUserById(userId: number): User | null {
     const stmt = db.prepare(`
       SELECT id, username, created_at,
-             booklore_username, booklore_password, goodreads_readings
+             booklore_username, booklore_password, goodreads_readings,
+             data_source_preference
       FROM users
       WHERE id = ?
     `);
@@ -148,6 +162,7 @@ export class DatabaseService {
       bookloreUsername: row.booklore_username || undefined,
       booklorePassword: row.booklore_password || undefined,
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
+      dataSourcePreference: row.data_source_preference || 'auto',
     };
   }
 
@@ -276,4 +291,15 @@ export class DatabaseService {
 
     stmt.run(userId);
   }
+
+  static updateDataSourcePreference(userId: number, preference: DataSourcePreference): void {
+    const stmt = db.prepare(`
+      UPDATE users
+      SET data_source_preference = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(preference, userId);
+  }
+
 }
