@@ -10,15 +10,15 @@ BookRex is a self‑hosted web app that generates LLM-powered book recommendatio
 - **Admin tools**: the very first account created becomes an admin. Admins can view users, change passwords, delete accounts, and grant/revoke admin status directly from Settings.
 - **Local persistence**: everything lives in `./data/` (auto-created). Keep that folder for upgrades/backups.
 
-## Quick Start
+## Quick Start (Local Node.js)
 
 ```bash
-git clone https://github.com/your-org/book-rex.git
-cd book-rex
-npm install
-cp .env.example .env        # add your AI API key + SESSION_SECRET
-npm run dev                 # hot reload
-# or npm run build && npm start for production
+git clone https://github.com/oliver-howard/booklore-recs.git
+cd booklore-recs
+cp .env.example .env           # add AI API key(s), SESSION_SECRET, TRUST_PROXY, etc.
+npm install                    # or npm ci
+npm run dev                    # hot reload at http://localhost:3000
+# production: npm run build && npm start
 ```
 
 - Visit `http://localhost:3000`, register the first account (auto-admin), then connect BookLore or upload Goodreads data.
@@ -26,11 +26,15 @@ npm run dev                 # hot reload
 
 ### Docker
 
-```
-docker-compose up -d
+```bash
+# Use the published linux/amd64 image (or build locally) and bring everything up
+cp .env.example .env                    # set AI keys, SESSION_SECRET, TRUST_PROXY, etc.
+docker compose pull                     # pulls ghcr.io/oliver-howard/book-rex:latest
+docker compose up -d                    # or docker compose up --build -d
 ```
 
-`docker-compose.yml` mounts `./data:/usr/src/app/data`, so container restarts keep your DB. Update `.env` for AI keys and `SESSION_SECRET` before launching.
+- The compose file mounts `./data:/usr/src/app/data`, so container restarts keep your DB.
+- To pin versions, set `image: ghcr.io/oliver-howard/book-rex:vX.Y.Z` in `docker-compose.yml` or tag your own build with `docker buildx build --platform linux/amd64 -t <registry>/book-rex:<tag> .`.
 
 ### AMD/Linux Compatibility
 
