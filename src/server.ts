@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { RecommendationService } from './recommendation-service.js';
 import { validateConfig } from './config.js';
 import { Recommendation, ReadingAnalysis, TBRBook, UserReading } from './types.js';
-import { UserDataService } from './user-data-service.js';
+import { DatabaseService } from './database.js';
 import { GoodreadsParser } from './goodreads-parser.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,26 +49,26 @@ app.use(express.static(publicPath));
 declare module 'express-session' {
   interface SessionData {
     initialized: boolean;
-    bookloreUsername?: string;
-    booklorePassword?: string;
-    isGuest?: boolean;
-    guestReadings?: UserReading[]; // Parsed CSV data for guest users
+    userId?: number; // Database user ID
   }
 }
 
 // Store service instances per session
 const sessionServices = new Map<string, RecommendationService>();
 
-// Create user data service instance
-const userDataService = new UserDataService();
-
 // Initialize recommendation service for a user session
 async function getService(req: Request): Promise<RecommendationService> {
   const sessionId = req.sessionID;
 
-  // Check if user is a guest or has provided credentials
-  if (!req.session.isGuest && (!req.session.bookloreUsername || !req.session.booklorePassword)) {
-    throw new Error('BookLore credentials not configured. Please log in first.');
+  // Check if user is authenticated
+  if (!req.session.userId) {
+    throw new Error('Not authenticated. Please log in first.');
+  }
+
+  // Get user from database
+  const user = DatabaseService.getUserById(req.session.userId);
+  if (!user) {
+    throw new Error('User not found');
   }
 
   // Get or create service for this session
@@ -77,22 +77,21 @@ async function getService(req: Request): Promise<RecommendationService> {
   if (!service) {
     console.log('Creating new service instance for session:', sessionId.substring(0, 8) + '...');
 
-    // Create service with user-specific credentials (or undefined for guest)
-    // Pass guest readings if available
+    // Create service with user's configured data sources
     service = new RecommendationService(
       undefined, // AI config (use defaults)
-      req.session.bookloreUsername,
-      req.session.booklorePassword,
-      req.session.guestReadings // CSV data for guest mode
+      user.bookloreUsername,
+      user.booklorePassword,
+      user.goodreadsReadings
     );
 
-    // Only initialize (authenticate with BookLore) if not a guest
-    if (!req.session.isGuest) {
+    // Only initialize (authenticate with BookLore) if credentials are configured
+    if (user.bookloreUsername && user.booklorePassword) {
       await service.initialize();
-      console.log('Service initialized successfully for user:', req.session.bookloreUsername);
+      console.log('Service initialized successfully for user:', user.username);
     } else {
-      const readingsCount = req.session.guestReadings?.length || 0;
-      console.log(`Service created for guest session (${readingsCount} books from CSV)`);
+      const readingsCount = user.goodreadsReadings?.length || 0;
+      console.log(`Service created for user ${user.username} (${readingsCount} books from Goodreads CSV)`);
     }
 
     sessionServices.set(sessionId, service);
@@ -118,29 +117,63 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.get(
   '/api/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.initialized && req.session.isGuest) {
-      const hasCSVData = req.session.guestReadings && req.session.guestReadings.length > 0;
-      res.json({
-        authenticated: true,
-        isGuest: true,
-        username: 'Guest',
-        hasReadingHistory: hasCSVData,
-        booksCount: hasCSVData ? req.session.guestReadings!.length : 0,
+    if (req.session.userId) {
+      const user = DatabaseService.getUserById(req.session.userId);
+      if (user) {
+        const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
+        const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
+        const hasReadingHistory = hasBookLore || hasGoodreads;
+
+        res.json({
+          authenticated: true,
+          username: user.username,
+          hasReadingHistory,
+          hasBookLore,
+          hasGoodreads,
+          booksCount: user.goodreadsReadings?.length || 0,
+        });
+        return;
+      }
+    }
+    res.json({ authenticated: false });
+  })
+);
+
+// Register new user
+app.post(
+  '/api/auth/register',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required',
       });
-    } else if (req.session.initialized && req.session.bookloreUsername) {
+    }
+
+    try {
+      const user = await DatabaseService.createUser(username, password);
+
+      // Log user in immediately
+      req.session.userId = user.id;
+      req.session.initialized = true;
+
       res.json({
-        authenticated: true,
-        isGuest: false,
-        username: req.session.bookloreUsername,
-        hasReadingHistory: true,
+        success: true,
+        message: 'Account created successfully',
+        username: user.username,
       });
-    } else {
-      res.json({ authenticated: false });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Registration failed',
+      });
     }
   })
 );
 
-// Login with BookLore credentials
+// Login with local account
 app.post(
   '/api/auth/login',
   asyncHandler(async (req: Request, res: Response) => {
@@ -154,24 +187,17 @@ app.post(
     }
 
     try {
-      // Store credentials in session
-      req.session.bookloreUsername = username;
-      req.session.booklorePassword = password;
+      const user = await DatabaseService.authenticateUser(username, password);
 
-      // Try to initialize service (this will test the credentials)
-      await getService(req);
+      req.session.userId = user.id;
+      req.session.initialized = true;
 
       res.json({
         success: true,
         message: 'Login successful',
-        username: username,
+        username: user.username,
       });
     } catch (error) {
-      // Clear credentials on failure
-      delete req.session.bookloreUsername;
-      delete req.session.booklorePassword;
-      delete req.session.initialized;
-
       res.status(401).json({
         success: false,
         message: error instanceof Error ? error.message : 'Authentication failed',
@@ -180,39 +206,84 @@ app.post(
   })
 );
 
-// Guest login (no BookLore credentials required)
+// ========== Settings Endpoints ==========
+
+// Configure BookLore credentials
 app.post(
-  '/api/auth/guest',
+  '/api/settings/booklore',
   asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required',
+      });
+    }
+
     try {
-      // Mark session as guest
-      req.session.isGuest = true;
-      req.session.initialized = true;
+      // Update credentials in database
+      DatabaseService.updateBookLoreCredentials(req.session.userId, username, password);
+
+      // Clear service instance to force re-initialization with new credentials
+      sessionServices.delete(req.sessionID);
 
       res.json({
         success: true,
-        message: 'Guest session created',
-        username: 'Guest',
-        isGuest: true,
+        message: 'BookLore credentials saved successfully',
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to create guest session',
+        message: error instanceof Error ? error.message : 'Failed to save credentials',
       });
     }
   })
 );
 
-// Upload Goodreads CSV for guest mode
-app.post(
-  '/api/auth/guest/upload-csv',
+// Remove BookLore credentials
+app.delete(
+  '/api/settings/booklore',
   asyncHandler(async (req: Request, res: Response) => {
-    // Verify this is a guest session
-    if (!req.session.isGuest) {
-      return res.status(403).json({
+    if (!req.session.userId) {
+      return res.status(401).json({
         success: false,
-        message: 'CSV upload is only available for guest mode',
+        message: 'Not authenticated',
+      });
+    }
+
+    try {
+      DatabaseService.clearBookLoreCredentials(req.session.userId);
+      sessionServices.delete(req.sessionID);
+
+      res.json({
+        success: true,
+        message: 'BookLore credentials removed',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove credentials',
+      });
+    }
+  })
+);
+
+// Upload Goodreads CSV
+app.post(
+  '/api/settings/goodreads',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
       });
     }
 
@@ -226,7 +297,6 @@ app.post(
     }
 
     try {
-      // Parse the CSV content
       const readings = GoodreadsParser.parseCSV(csvContent);
 
       if (readings.length === 0) {
@@ -236,10 +306,7 @@ app.post(
         });
       }
 
-      // Store in session
-      req.session.guestReadings = readings;
-
-      // Clear any existing service instance to force re-initialization with new data
+      DatabaseService.updateGoodreadsReadings(req.session.userId, readings);
       sessionServices.delete(req.sessionID);
 
       res.json({
@@ -248,10 +315,37 @@ app.post(
         booksCount: readings.length,
       });
     } catch (error) {
-      console.error('Error parsing CSV:', error);
       res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to parse CSV file',
+      });
+    }
+  })
+);
+
+// Remove Goodreads data
+app.delete(
+  '/api/settings/goodreads',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    try {
+      DatabaseService.clearGoodreadsReadings(req.session.userId);
+      sessionServices.delete(req.sessionID);
+
+      res.json({
+        success: true,
+        message: 'Goodreads data removed',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove Goodreads data',
       });
     }
   })
@@ -353,21 +447,14 @@ app.post(
 app.get(
   '/api/tbr',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.isGuest) {
-      return res.status(403).json({
-        success: false,
-        message: 'TBR list is not available in guest mode',
-      });
-    }
-
-    if (!req.session.bookloreUsername) {
+    if (!req.session.userId) {
       return res.status(401).json({
         success: false,
         message: 'Not authenticated',
       });
     }
 
-    const tbr = await userDataService.getTBR(req.session.bookloreUsername);
+    const tbr = DatabaseService.getTBRList(req.session.userId);
     res.json({ tbr });
   })
 );
@@ -376,14 +463,7 @@ app.get(
 app.post(
   '/api/tbr',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.isGuest) {
-      return res.status(403).json({
-        success: false,
-        message: 'TBR list is not available in guest mode',
-      });
-    }
-
-    if (!req.session.bookloreUsername) {
+    if (!req.session.userId) {
       return res.status(401).json({
         success: false,
         message: 'Not authenticated',
@@ -399,11 +479,11 @@ app.post(
       });
     }
 
-    // Generate ID for the book
-    const id = UserDataService.generateBookId(title, author);
+    // Generate ID for the book (simple hash of title + author)
+    const id = `${title.toLowerCase().replace(/\s+/g, '-')}-${author.toLowerCase().replace(/\s+/g, '-')}`;
 
     try {
-      const book = await userDataService.addToTBR(req.session.bookloreUsername, {
+      const book = DatabaseService.addToTBR(req.session.userId, {
         id,
         title,
         author,
@@ -417,7 +497,7 @@ app.post(
         message: 'Book added to TBR list',
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Book already in TBR list') {
+      if (error instanceof Error && error.message.includes('UNIQUE')) {
         return res.status(409).json({
           success: false,
           message: 'Book is already in your TBR list',
@@ -432,14 +512,7 @@ app.post(
 app.delete(
   '/api/tbr/:bookId',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.isGuest) {
-      return res.status(403).json({
-        success: false,
-        message: 'TBR list is not available in guest mode',
-      });
-    }
-
-    if (!req.session.bookloreUsername) {
+    if (!req.session.userId) {
       return res.status(401).json({
         success: false,
         message: 'Not authenticated',
@@ -449,19 +522,16 @@ app.delete(
     const { bookId } = req.params;
 
     try {
-      await userDataService.removeFromTBR(req.session.bookloreUsername, bookId);
+      DatabaseService.removeFromTBR(req.session.userId, bookId);
       res.json({
         success: true,
         message: 'Book removed from TBR list',
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Book not found in TBR list') {
-        return res.status(404).json({
-          success: false,
-          message: 'Book not found in TBR list',
-        });
-      }
-      throw error;
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove book',
+      });
     }
   })
 );
@@ -470,21 +540,14 @@ app.delete(
 app.delete(
   '/api/tbr',
   asyncHandler(async (req: Request, res: Response) => {
-    if (req.session.isGuest) {
-      return res.status(403).json({
-        success: false,
-        message: 'TBR list is not available in guest mode',
-      });
-    }
-
-    if (!req.session.bookloreUsername) {
+    if (!req.session.userId) {
       return res.status(401).json({
         success: false,
         message: 'Not authenticated',
       });
     }
 
-    await userDataService.clearTBR(req.session.bookloreUsername);
+    DatabaseService.clearTBR(req.session.userId);
     res.json({
       success: true,
       message: 'TBR list cleared',

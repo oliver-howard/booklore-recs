@@ -378,6 +378,114 @@ header h1 {
   width: 100%;
 }
 
+.auth-toggle-text {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--text-light);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 6px;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.recommendations-list {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.recommendations-list.nested {
+  margin-top: 16px;
+}
+
+.recommendation-item {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+}
+
+.recommendation-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.recommendation-index {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.recommendation-title h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text);
+}
+
+.recommendation-title .author {
+  display: block;
+  font-style: italic;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+.recommendation-item .reasoning {
+  margin: 12px 0 16px;
+  color: var(--text);
+}
+
+.recommendation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recommendation-actions .btn-sm {
+  font-size: 0.85rem;
+  padding: 8px 14px;
+}
+
+.amazon-link {
+  margin-top: 12px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ff9900;
+  color: #232f3e;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.amazon-link:hover {
+  background: #ffad33;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.tbr-meta {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
 .form-group {
   margin-bottom: 20px;
 }
@@ -627,6 +735,35 @@ header h1 {
   border: 1px solid var(--clr-success-a10);
   color: var(--clr-success-a20);
   margin-bottom: 20px;
+}
+
+.notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  min-width: 240px;
+  z-index: 1000;
+  transition: opacity 0.2s, transform 0.2s;
+  border-left: 4px solid var(--primary);
+}
+
+.notification.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+.notification.success {
+  border-left-color: var(--success);
+}
+
+.notification.error {
+  border-left-color: var(--danger);
 }
 
 .hidden {

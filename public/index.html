@@ -11,90 +11,47 @@
     <div id="login-modal" class="modal">
       <div class="modal-content">
         <h2>Welcome to BookLore AI</h2>
-        <p class="modal-subtitle">Choose your data source for personalized recommendations</p>
+        <p id="auth-modal-subtitle" class="modal-subtitle">Log in to your account</p>
 
-        <!-- Main Option Selection -->
-        <div id="option-selection" class="option-grid">
-          <button class="option-card" onclick="showBookLoreLogin()">
-            <div class="option-icon">📚</div>
-            <h3>BookLore</h3>
-            <p>Full personalized recommendations with persistent TBR shelf</p>
-          </button>
-
-          <button class="option-card" onclick="showGoodreadsUpload()">
-            <div class="option-icon">📖</div>
-            <h3>Goodreads</h3>
-            <p>Upload your Goodreads library for personalized recommendations</p>
-          </button>
-
-          <button class="option-card" onclick="handleGuestLogin()">
-            <div class="option-icon">✨</div>
-            <h3>Guest</h3>
-            <p>Try custom recommendations without reading history</p>
-          </button>
-        </div>
-
-        <!-- BookLore Login Form (hidden by default) -->
-        <div id="booklore-login-section" class="hidden">
-          <h3 style="margin-bottom: 16px;">Login to BookLore</h3>
-
-          <form id="login-form" onsubmit="handleLogin(event)">
+        <!-- Login/Register Selection -->
+        <div id="auth-selection">
+          <form id="auth-form" onsubmit="handleAuth(event)">
+            <input type="hidden" id="auth-mode" value="login" />
             <div class="form-group">
-              <label for="login-username">Username</label>
+              <label for="auth-username">Username</label>
               <input
                 type="text"
-                id="login-username"
-                placeholder="Your BookLore username"
+                id="auth-username"
+                placeholder="Enter your username"
                 autocomplete="username"
+                required
               />
             </div>
 
             <div class="form-group">
-              <label for="login-password">Password</label>
+              <label for="auth-password">Password</label>
               <input
                 type="password"
-                id="login-password"
-                placeholder="Your BookLore password"
+                id="auth-password"
+                placeholder="Enter your password"
                 autocomplete="current-password"
+                required
+                minlength="6"
               />
             </div>
 
-            <div class="form-group">
-              <label class="checkbox-label">
-                <input type="checkbox" id="remember-me" />
-                <span>Remember my username</span>
-              </label>
-            </div>
+            <div id="auth-error" class="error hidden"></div>
 
-            <div id="login-error" class="error hidden"></div>
-
-            <button type="submit" class="btn btn-primary btn-block">Login</button>
-            <button type="button" class="btn btn-secondary btn-block" onclick="showOptionSelection()">Back</button>
+            <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">
+              Log In
+            </button>
+            <p class="auth-toggle-text">
+              <span id="auth-toggle-message">Need an account?</span>
+              <button type="button" class="link-button" id="auth-toggle-button" onclick="toggleAuthMode()">
+                Create one
+              </button>
+            </p>
           </form>
-        </div>
-
-        <!-- Goodreads CSV Upload Section (hidden by default) -->
-        <div id="goodreads-upload-section" class="hidden">
-          <h3 style="margin-bottom: 12px;">Upload Goodreads Library Export</h3>
-          <p class="modal-note" style="margin-bottom: 16px;">
-            Export your Goodreads library from
-            <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>
-            and upload it here for personalized recommendations.
-          </p>
-
-          <div class="form-group">
-            <input type="file" id="csv-file-input" accept=".csv" />
-          </div>
-
-          <div id="csv-upload-error" class="error hidden"></div>
-          <div id="csv-upload-success" class="success hidden"></div>
-
-          <button type="button" class="btn btn-primary btn-block" onclick="handleCSVUpload()">
-            Upload and Continue
-          </button>
-          <button type="button" class="btn btn-secondary btn-block" onclick="showOptionSelection()">
-            Back
-          </button>
         </div>
       </div>
     </div>
@@ -108,6 +65,7 @@
           </div>
           <div id="user-info" class="user-info hidden">
             <span id="username-display"></span>
+            <button class="btn btn-secondary btn-sm" onclick="showSettings()">Settings</button>
             <button class="btn btn-secondary btn-sm" onclick="handleLogout()">Logout</button>
           </div>
         </div>
@@ -119,6 +77,7 @@
       </div>
 
       <div id="error" class="error hidden"></div>
+      <div id="notification" class="notification hidden"></div>
 
       <nav class="tabs">
         <button class="tab-button active" data-tab="similar">Similar Books</button>
@@ -127,6 +86,7 @@
         <button class="tab-button" data-tab="custom">Custom</button>
         <button class="tab-button" data-tab="tbr">To Be Read</button>
         <button class="tab-button" data-tab="stats">Statistics</button>
+        <button class="tab-button" data-tab="settings">Settings</button>
       </nav>
 
       <div class="tab-content">
@@ -205,6 +165,78 @@
           </div>
           <button class="btn btn-primary" onclick="getStats()">Load Statistics</button>
           <div id="stats-results" class="results"></div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings-tab" class="tab-pane">
+          <div class="section-header">
+            <h2>Settings</h2>
+            <p>Configure your data sources</p>
+          </div>
+
+          <!-- BookLore Integration -->
+          <div class="settings-section">
+            <h3>BookLore Integration</h3>
+            <p class="settings-description">
+              Connect your BookLore account to sync your reading history and enable all features.
+            </p>
+            <div id="booklore-status" class="status-indicator">
+              <span id="booklore-status-text">Not connected</span>
+            </div>
+
+            <form id="booklore-form" onsubmit="saveBookLoreCredentials(event)" class="settings-form">
+              <div class="form-group">
+                <label for="booklore-username">BookLore Username</label>
+                <input
+                  type="text"
+                  id="booklore-username"
+                  placeholder="Your BookLore username"
+                  autocomplete="username"
+                />
+              </div>
+              <div class="form-group">
+                <label for="booklore-password">BookLore Password</label>
+                <input
+                  type="password"
+                  id="booklore-password"
+                  placeholder="Your BookLore password"
+                  autocomplete="current-password"
+                />
+              </div>
+              <div class="settings-buttons">
+                <button type="submit" class="btn btn-primary">Save Credentials</button>
+                <button type="button" class="btn btn-secondary" onclick="removeBookLoreCredentials()">
+                  Remove Connection
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Goodreads CSV Upload -->
+          <div class="settings-section">
+            <h3>Goodreads Import</h3>
+            <p class="settings-description">
+              Upload your Goodreads library export to use your reading history for recommendations.
+              Export from <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>.
+            </p>
+            <div id="goodreads-status" class="status-indicator">
+              <span id="goodreads-status-text">No data uploaded</span>
+            </div>
+
+            <div class="form-group">
+              <input type="file" id="settings-csv-input" accept=".csv" />
+            </div>
+            <div id="settings-csv-error" class="error hidden"></div>
+            <div id="settings-csv-success" class="success hidden"></div>
+            <div class="settings-buttons">
+              <button type="button" class="btn btn-primary" onclick="uploadGoodreadsCSV()">
+                Upload CSV
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
+                Remove Data
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

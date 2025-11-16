@@ -3,8 +3,38 @@ const API_BASE = '/api';
 
 // Track authentication state
 let isAuthenticated = false;
-let isGuestMode = false;
 let hasReadingHistory = false;
+let hasBookLore = false;
+let hasGoodreads = false;
+let notificationTimeout;
+let authMode = 'login';
+
+function clearAppState() {
+  const resultAreas = [
+    'similar-results',
+    'contrasting-results',
+    'blindspots-results',
+    'custom-results',
+    'stats-results',
+    'tbr-results',
+  ];
+
+  resultAreas.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = '';
+    }
+  });
+
+  const loadingElement = document.getElementById('loading');
+  loadingElement?.classList.add('hidden');
+
+  const errorElement = document.getElementById('error');
+  errorElement?.classList.add('hidden');
+
+  const notificationElement = document.getElementById('notification');
+  notificationElement?.classList.add('hidden');
+}
 
 // Check authentication status
 async function checkAuthStatus() {
@@ -13,25 +43,26 @@ async function checkAuthStatus() {
     const data = await response.json();
 
     if (data.authenticated) {
+      const isNewlyAuthenticated = !isAuthenticated;
       isAuthenticated = true;
-      isGuestMode = data.isGuest || false;
       hasReadingHistory = data.hasReadingHistory || false;
+      hasBookLore = data.hasBookLore || false;
+      hasGoodreads = data.hasGoodreads || false;
       hideLoginModal();
 
-      // Update username display based on whether they have CSV data
-      if (isGuestMode && hasReadingHistory) {
-        showUserInfo(`Guest (${data.booksCount} books from Goodreads)`);
-      } else if (isGuestMode) {
-        showUserInfo('Guest (No Reading History)');
-      } else {
-        showUserInfo(data.username);
-      }
-
+      showUserInfo(data.username);
       updateUIForMode();
+      updateSettingsUI(data);
+
+      if (isNewlyAuthenticated) {
+        loadTBR();
+      }
     } else {
       isAuthenticated = false;
-      isGuestMode = false;
       hasReadingHistory = false;
+      hasBookLore = false;
+      hasGoodreads = false;
+      clearAppState();
       showLoginModal();
     }
   } catch (error) {
@@ -40,17 +71,14 @@ async function checkAuthStatus() {
   }
 }
 
-// Update UI based on guest mode or full auth
+// Update UI based on available data sources
 function updateUIForMode() {
-  // Tabs that require reading history (BookLore or CSV)
+  // Tabs that require reading history (BookLore or Goodreads CSV)
   const historyRequiredTabs = ['similar', 'contrasting', 'blindspots', 'stats'];
-  // TBR is only available for BookLore users (requires persistent storage)
-  const bookloreOnlyTabs = ['tbr'];
 
   historyRequiredTabs.forEach(tab => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
     if (button) {
-      // Enable if user has reading history (either BookLore or CSV)
       if (hasReadingHistory) {
         button.disabled = false;
         button.title = '';
@@ -58,25 +86,7 @@ function updateUIForMode() {
         button.style.cursor = 'pointer';
       } else {
         button.disabled = true;
-        button.title = 'Upload Goodreads CSV or login with BookLore to access this feature';
-        button.style.opacity = '0.5';
-        button.style.cursor = 'not-allowed';
-      }
-    }
-  });
-
-  bookloreOnlyTabs.forEach(tab => {
-    const button = document.querySelector(`[data-tab="${tab}"]`);
-    if (button) {
-      // Only enable for BookLore users (not guest mode)
-      if (!isGuestMode) {
-        button.disabled = false;
-        button.title = '';
-        button.style.opacity = '1';
-        button.style.cursor = 'pointer';
-      } else {
-        button.disabled = true;
-        button.title = 'Login with BookLore to access this feature';
+        button.title = 'Configure a data source in Settings to access this feature';
         button.style.opacity = '0.5';
         button.style.cursor = 'not-allowed';
       }
@@ -88,204 +98,106 @@ function updateUIForMode() {
   if (activeTab) {
     const tabName = activeTab.dataset.tab;
     const needsHistory = historyRequiredTabs.includes(tabName);
-    const needsBooklore = bookloreOnlyTabs.includes(tabName);
 
-    if ((needsHistory && !hasReadingHistory) || (needsBooklore && isGuestMode)) {
+    if (needsHistory && !hasReadingHistory) {
       switchTab('custom');
     }
   }
 }
 
+// Update settings UI based on current configuration
+function updateSettingsUI(data) {
+  // Update BookLore status
+  const bookloreStatus = document.getElementById('booklore-status-text');
+  if (data.hasBookLore) {
+    bookloreStatus.textContent = '✓ Connected';
+    bookloreStatus.style.color = 'var(--success-color, #22c55e)';
+  } else {
+    bookloreStatus.textContent = 'Not connected';
+    bookloreStatus.style.color = 'var(--text-secondary)';
+  }
+
+  // Update Goodreads status
+  const goodreadsStatus = document.getElementById('goodreads-status-text');
+  if (data.hasGoodreads) {
+    goodreadsStatus.textContent = `✓ ${data.booksCount} books imported`;
+    goodreadsStatus.style.color = 'var(--success-color, #22c55e)';
+  } else {
+    goodreadsStatus.textContent = 'No data uploaded';
+    goodreadsStatus.style.color = 'var(--text-secondary)';
+  }
+}
+
 // Show/hide login modal
 function showLoginModal() {
-  document.getElementById('login-modal').classList.add('show');
-  loadSavedUsername();
+  setAuthMode('login');
+  document.getElementById('login-modal').style.display = 'flex';
 }
 
 function hideLoginModal() {
-  document.getElementById('login-modal').classList.remove('show');
+  document.getElementById('login-modal').style.display = 'none';
 }
 
-// Show user info in header
+// Show user info
 function showUserInfo(username) {
-  const userInfo = document.getElementById('user-info');
-  const usernameDisplay = document.getElementById('username-display');
-  usernameDisplay.textContent = `Logged in as: ${username}`;
-  userInfo.classList.remove('hidden');
+  document.getElementById('username-display').textContent = username;
+  document.getElementById('user-info').classList.remove('hidden');
 }
 
-function hideUserInfo() {
-  document.getElementById('user-info').classList.add('hidden');
-}
+function setAuthMode(mode) {
+  authMode = mode;
+  const modeInput = document.getElementById('auth-mode');
+  const subtitle = document.getElementById('auth-modal-subtitle');
+  const submitButton = document.getElementById('auth-submit-btn');
+  const toggleMessage = document.getElementById('auth-toggle-message');
+  const toggleButton = document.getElementById('auth-toggle-button');
+  const usernameInput = document.getElementById('auth-username');
+  const passwordInput = document.getElementById('auth-password');
+  const errorElement = document.getElementById('auth-error');
 
-// Load saved username if "Remember Me" was checked
-function loadSavedUsername() {
-  const savedUsername = localStorage.getItem('booklore_username');
-  const usernameInput = document.getElementById('login-username');
-  const rememberCheckbox = document.getElementById('remember-me');
-
-  if (savedUsername) {
-    usernameInput.value = savedUsername;
-    rememberCheckbox.checked = true;
-  }
-}
-
-// Handle guest login
-async function handleGuestLogin() {
-  const errorDiv = document.getElementById('login-error');
-  errorDiv.classList.add('hidden');
-
-  try {
-    showLoading(true);
-
-    const response = await fetch(`${API_BASE}/auth/guest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Guest login failed');
-    }
-
-    // Guest login successful
-    isAuthenticated = true;
-    isGuestMode = true;
-
-    showUserInfo('Guest (No Reading History)');
-    hideLoginModal();
-    updateUIForMode();
-    showLoading(false);
-  } catch (error) {
-    showLoading(false);
-    errorDiv.textContent = error.message;
-    errorDiv.classList.remove('hidden');
-  }
-}
-
-// Show option selection screen
-function showOptionSelection() {
-  document.getElementById('option-selection').classList.remove('hidden');
-  document.getElementById('booklore-login-section').classList.add('hidden');
-  document.getElementById('goodreads-upload-section').classList.add('hidden');
-
-  // Clear any errors
-  document.getElementById('login-error').classList.add('hidden');
-  document.getElementById('csv-upload-error').classList.add('hidden');
-  document.getElementById('csv-upload-success').classList.add('hidden');
-}
-
-// Show BookLore login form
-function showBookLoreLogin() {
-  document.getElementById('option-selection').classList.add('hidden');
-  document.getElementById('booklore-login-section').classList.remove('hidden');
-  document.getElementById('goodreads-upload-section').classList.add('hidden');
-}
-
-// Show Goodreads CSV upload section
-function showGoodreadsUpload() {
-  document.getElementById('option-selection').classList.add('hidden');
-  document.getElementById('booklore-login-section').classList.add('hidden');
-  document.getElementById('goodreads-upload-section').classList.remove('hidden');
-}
-
-// Handle CSV file upload
-async function handleCSVUpload() {
-  const fileInput = document.getElementById('csv-file-input');
-  const errorDiv = document.getElementById('csv-upload-error');
-  const successDiv = document.getElementById('csv-upload-success');
-
-  errorDiv.classList.add('hidden');
-  successDiv.classList.add('hidden');
-
-  if (!fileInput.files || fileInput.files.length === 0) {
-    errorDiv.textContent = 'Please select a CSV file';
-    errorDiv.classList.remove('hidden');
+  if (!modeInput || !subtitle || !submitButton || !toggleMessage || !toggleButton || !usernameInput || !passwordInput) {
     return;
   }
 
-  const file = fileInput.files[0];
+  modeInput.value = mode;
+  errorElement?.classList.add('hidden');
 
-  if (!file.name.endsWith('.csv')) {
-    errorDiv.textContent = 'Please select a valid CSV file';
-    errorDiv.classList.remove('hidden');
-    return;
-  }
-
-  try {
-    showLoading(true);
-
-    // Read the file content
-    const csvContent = await file.text();
-
-    // First, create a guest session
-    const guestResponse = await fetch(`${API_BASE}/auth/guest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!guestResponse.ok) {
-      throw new Error('Failed to create guest session');
-    }
-
-    // Then upload the CSV
-    const uploadResponse = await fetch(`${API_BASE}/auth/guest/upload-csv`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csvContent }),
-    });
-
-    const data = await uploadResponse.json();
-
-    if (!uploadResponse.ok) {
-      throw new Error(data.message || 'Failed to upload CSV');
-    }
-
-    // Success!
-    isAuthenticated = true;
-    isGuestMode = true;
-    hasReadingHistory = true; // CSV data uploaded
-
-    successDiv.textContent = data.message;
-    successDiv.classList.remove('hidden');
-
-    // Wait a moment to show success message, then close modal
-    setTimeout(() => {
-      showUserInfo(`Guest (${data.booksCount} books from Goodreads)`);
-      hideLoginModal();
-      updateUIForMode();
-      showLoading(false);
-    }, 1500);
-  } catch (error) {
-    showLoading(false);
-    errorDiv.textContent = error.message;
-    errorDiv.classList.remove('hidden');
+  if (mode === 'login') {
+    subtitle.textContent = 'Log in to your account';
+    submitButton.textContent = 'Log In';
+    toggleMessage.textContent = 'Need an account?';
+    toggleButton.textContent = 'Create one';
+    usernameInput.placeholder = 'Enter your username';
+    passwordInput.placeholder = 'Enter your password';
+    passwordInput.setAttribute('minlength', '1');
+  } else {
+    subtitle.textContent = 'Create a new account';
+    submitButton.textContent = 'Create Account';
+    toggleMessage.textContent = 'Already have an account?';
+    toggleButton.textContent = 'Log in';
+    usernameInput.placeholder = 'Choose a username';
+    passwordInput.placeholder = 'Choose a password (min 6 characters)';
+    passwordInput.setAttribute('minlength', '6');
   }
 }
 
-// Handle login form submission
-async function handleLogin(event) {
+function toggleAuthMode() {
+  setAuthMode(authMode === 'login' ? 'register' : 'login');
+}
+
+// Handle authentication (login or register)
+async function handleAuth(event) {
   event.preventDefault();
 
-  const username = document.getElementById('login-username').value;
-  const password = document.getElementById('login-password').value;
-  const rememberMe = document.getElementById('remember-me').checked;
-  const errorDiv = document.getElementById('login-error');
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const action = document.getElementById('auth-mode').value || 'login';
 
-  // Validate inputs
-  if (!username || !password) {
-    errorDiv.textContent = 'Please enter both username and password';
-    errorDiv.classList.remove('hidden');
-    return;
-  }
-
-  errorDiv.classList.add('hidden');
+  const errorElement = document.getElementById('auth-error');
+  errorElement.classList.add('hidden');
 
   try {
-    showLoading(true);
-
-    const response = await fetch(`${API_BASE}/auth/login`, {
+    const response = await fetch(`${API_BASE}/auth/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -293,49 +205,161 @@ async function handleLogin(event) {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
-    }
-
-    // Login successful
-    isAuthenticated = true;
-    isGuestMode = false;
-    hasReadingHistory = true; // BookLore users always have reading history
-
-    // Save or clear username based on "Remember Me" checkbox
-    if (rememberMe) {
-      localStorage.setItem('booklore_username', username);
+    if (data.success) {
+      await checkAuthStatus();
     } else {
-      localStorage.removeItem('booklore_username');
+      errorElement.textContent = data.message || `${action === 'login' ? 'Login' : 'Registration'} failed`;
+      errorElement.classList.remove('hidden');
     }
-
-    showUserInfo(data.username);
-    hideLoginModal();
-    updateUIForMode();
-    showLoading(false);
-
-    // Clear form
-    document.getElementById('login-form').reset();
   } catch (error) {
-    showLoading(false);
-    errorDiv.textContent = error.message;
-    errorDiv.classList.remove('hidden');
+    console.error(`${action} error:`, error);
+    errorElement.textContent = `Failed to ${action}. Please try again.`;
+    errorElement.classList.remove('hidden');
   }
 }
 
-// Handle logout
+// Settings functions
+function showSettings() {
+  switchTab('settings');
+}
+
+async function saveBookLoreCredentials(event) {
+  event.preventDefault();
+
+  const username = document.getElementById('booklore-username').value.trim();
+  const password = document.getElementById('booklore-password').value;
+
+  if (!username || !password) {
+    alert('Please enter both username and password');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/booklore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert('BookLore credentials saved successfully!');
+      // Clear the form
+      document.getElementById('booklore-form').reset();
+      // Refresh auth status to update UI
+      await checkAuthStatus();
+    } else {
+      alert(data.message || 'Failed to save credentials');
+    }
+  } catch (error) {
+    console.error('Error saving BookLore credentials:', error);
+    alert('Failed to save credentials. Please try again.');
+  }
+}
+
+async function removeBookLoreCredentials() {
+  if (!confirm('Remove BookLore connection? This will not delete your reading history.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/booklore`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert('BookLore connection removed');
+      await checkAuthStatus();
+    } else {
+      alert(data.message || 'Failed to remove connection');
+    }
+  } catch (error) {
+    console.error('Error removing BookLore credentials:', error);
+    alert('Failed to remove connection. Please try again.');
+  }
+}
+
+async function uploadGoodreadsCSV() {
+  const fileInput = document.getElementById('settings-csv-input');
+  const file = fileInput.files[0];
+  const errorElement = document.getElementById('settings-csv-error');
+  const successElement = document.getElementById('settings-csv-success');
+
+  errorElement.classList.add('hidden');
+  successElement.classList.add('hidden');
+
+  if (!file) {
+    errorElement.textContent = 'Please select a CSV file';
+    errorElement.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const csvContent = await file.text();
+
+    const response = await fetch(`${API_BASE}/settings/goodreads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csvContent }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      successElement.textContent = data.message;
+      successElement.classList.remove('hidden');
+      fileInput.value = ''; // Clear the file input
+      // Refresh auth status to update UI
+      await checkAuthStatus();
+    } else {
+      errorElement.textContent = data.message || 'Failed to upload CSV';
+      errorElement.classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('Error uploading CSV:', error);
+    errorElement.textContent = 'Failed to upload CSV. Please try again.';
+    errorElement.classList.remove('hidden');
+  }
+}
+
+async function removeGoodreadsData() {
+  if (!confirm('Remove Goodreads data? You can upload it again later.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/goodreads`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert('Goodreads data removed');
+      await checkAuthStatus();
+    } else {
+      alert(data.message || 'Failed to remove data');
+    }
+  } catch (error) {
+    console.error('Error removing Goodreads data:', error);
+    alert('Failed to remove data. Please try again.');
+  }
+}
+
+// Logout
 async function handleLogout() {
   try {
     await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
-
     isAuthenticated = false;
-    isGuestMode = false;
     hasReadingHistory = false;
-    hideUserInfo();
+    hasBookLore = false;
+    hasGoodreads = false;
+    clearAppState();
     showLoginModal();
-
-    // Clear any displayed data
-    document.querySelectorAll('.results').forEach((el) => (el.innerHTML = ''));
+    document.getElementById('user-info').classList.add('hidden');
   } catch (error) {
     console.error('Logout error:', error);
   }
@@ -343,603 +367,520 @@ async function handleLogout() {
 
 // Tab switching
 function switchTab(tabName) {
-  // Update active button
-  document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
-  const targetButton = document.querySelector(`[data-tab="${tabName}"]`);
-  if (targetButton) {
-    targetButton.classList.add('active');
-  }
-
-  // Update active pane
-  document
-    .querySelectorAll('.tab-pane')
-    .forEach((pane) => pane.classList.remove('active'));
-  document.getElementById(`${tabName}-tab`).classList.add('active');
-}
-
-document.querySelectorAll('.tab-button').forEach((button) => {
-  button.addEventListener('click', () => {
-    // Don't allow clicking disabled tabs
-    if (button.disabled) {
-      return;
-    }
-
-    const tabName = button.dataset.tab;
-    switchTab(tabName);
-
-    // Auto-load TBR when switching to TBR tab
-    if (tabName === 'tbr' && isAuthenticated && !isGuestMode) {
-      loadTBR();
-    }
+  // Update tab buttons
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.classList.remove('active');
   });
-});
+  document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
 
-// Utility functions
-function showLoading(show) {
-  const loader = document.getElementById('loading');
-  if (show) {
-    loader.classList.remove('hidden');
-  } else {
-    loader.classList.add('hidden');
+  // Update tab panes
+  document.querySelectorAll('.tab-pane').forEach(pane => {
+    pane.classList.remove('active');
+  });
+  document.getElementById(`${tabName}-tab`)?.classList.add('active');
+
+  if (tabName === 'tbr') {
+    loadTBR();
   }
 }
 
+// Loading state
+function showLoading(message = 'Loading recommendations...', targetResultsId) {
+  const loadingElement = document.getElementById('loading');
+  loadingElement.querySelector('p').textContent = message;
+
+  if (targetResultsId) {
+    const targetElement = document.getElementById(targetResultsId);
+    if (targetElement && targetElement.parentElement) {
+      targetElement.parentElement.insertBefore(loadingElement, targetElement);
+    }
+  }
+
+  loadingElement.classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.add('hidden');
+}
+
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatReasoning(reasoning = '') {
+  return escapeHtml(reasoning).replace(/\n/g, '<br>');
+}
+
+function buildRecommendationActions(rec) {
+  const titleData = encodeURIComponent(rec.title || '');
+  const authorData = encodeURIComponent(rec.author || 'Unknown');
+  const reasoningData = encodeURIComponent(rec.reasoning || '');
+  const amazonData = rec.amazonUrl ? encodeURIComponent(rec.amazonUrl) : '';
+
+  return `
+    <div class="recommendation-actions">
+      ${rec.amazonUrl ? `
+        <a href="${escapeHtml(rec.amazonUrl)}" target="_blank" class="amazon-link">
+          View on Amazon →
+        </a>
+      ` : ''}
+      <button
+        class="btn btn-sm btn-secondary"
+        data-title="${titleData}"
+        data-author="${authorData}"
+        data-reasoning="${reasoningData}"
+        data-amazon-url="${amazonData}"
+        onclick="addRecommendationToTBR(this)"
+      >
+        Add to TBR
+      </button>
+    </div>
+  `;
+}
+
+function renderRecommendationMarkup(rec, index) {
+  const safeTitle = escapeHtml(rec.title || 'Untitled');
+  const safeAuthor = escapeHtml(rec.author || 'Unknown');
+  const safeReasoning = formatReasoning(rec.reasoning || '');
+
+  return `
+    <li class="recommendation-item">
+      <div class="recommendation-title">
+        <span class="recommendation-index">${index + 1}.</span>
+        <div>
+          <h3>${safeTitle}</h3>
+          <span class="author">by ${safeAuthor}</span>
+        </div>
+      </div>
+      <p class="reasoning">${safeReasoning}</p>
+      ${buildRecommendationActions(rec)}
+    </li>
+  `;
+}
+
+function addRecommendationToTBR(button) {
+  const book = {
+    title: decodeURIComponent(button.dataset.title || ''),
+    author: decodeURIComponent(button.dataset.author || ''),
+    reasoning: decodeURIComponent(button.dataset.reasoning || ''),
+    amazonUrl: button.dataset.amazonUrl ? decodeURIComponent(button.dataset.amazonUrl) : undefined,
+  };
+  addToTBR(book);
+}
+
+// Error handling
 function showError(message) {
-  const errorDiv = document.getElementById('error');
-  errorDiv.textContent = message;
-  errorDiv.classList.remove('hidden');
-  errorDiv.classList.remove('success');
+  const errorElement = document.getElementById('error');
+  errorElement.textContent = message;
+  errorElement.classList.remove('hidden');
   setTimeout(() => {
-    errorDiv.classList.add('hidden');
+    errorElement.classList.add('hidden');
   }, 5000);
 }
 
-function showSuccess(message) {
-  const errorDiv = document.getElementById('error');
-  errorDiv.textContent = message;
-  errorDiv.classList.remove('hidden');
-  errorDiv.classList.add('success');
-  setTimeout(() => {
-    errorDiv.classList.add('hidden');
-    errorDiv.classList.remove('success');
-  }, 3000);
+function showNotification(message, type = 'success') {
+  const notificationElement = document.getElementById('notification');
+  notificationElement.textContent = message;
+  notificationElement.classList.remove('hidden');
+  notificationElement.classList.remove('success', 'error');
+  notificationElement.classList.add(type);
+
+  clearTimeout(notificationTimeout);
+  notificationTimeout = setTimeout(() => {
+    notificationElement.classList.add('hidden');
+  }, 4000);
 }
 
-function clearError() {
-  const errorDiv = document.getElementById('error');
-  errorDiv.classList.add('hidden');
-  errorDiv.classList.remove('success');
-}
-
-// Similar recommendations
+// Recommendation functions
 async function getSimilarRecommendations() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
-    return;
-  }
-
+  showLoading('Loading recommendations...', 'similar-results');
   try {
-    clearError();
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/recommendations/similar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get recommendations');
-    }
-
     const data = await response.json();
-    displayRecommendations(data.recommendations, 'similar-results');
+    hideLoading();
+
+    if (data.recommendations) {
+      displayRecommendations(data.recommendations, 'similar-results');
+    } else {
+      showError('Failed to get recommendations');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error getting recommendations:', error);
+    showError('Failed to get recommendations. Please try again.');
   }
 }
 
-// Contrasting recommendations
 async function getContrastingRecommendations() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
-    return;
-  }
-
+  showLoading('Loading recommendations...', 'contrasting-results');
   try {
-    clearError();
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/recommendations/contrasting`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get recommendations');
-    }
-
     const data = await response.json();
-    displayRecommendations(data.recommendations, 'contrasting-results');
+    hideLoading();
+
+    if (data.recommendations) {
+      displayRecommendations(data.recommendations, 'contrasting-results');
+    } else {
+      showError('Failed to get recommendations');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error getting recommendations:', error);
+    showError('Failed to get recommendations. Please try again.');
   }
 }
 
-// Blind spots analysis
 async function getBlindspots() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
-    return;
-  }
-
+  showLoading('Analyzing your reading patterns...', 'blindspots-results');
   try {
-    clearError();
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/recommendations/blindspots`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get analysis');
-    }
-
     const data = await response.json();
-    displayBlindspots(data.analysis, 'blindspots-results');
+    hideLoading();
+
+    if (data.analysis) {
+      displayBlindSpotsAnalysis(data.analysis, 'blindspots-results');
+    } else {
+      showError('Failed to get analysis');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error getting analysis:', error);
+    showError('Failed to get analysis. Please try again.');
   }
 }
 
-// Custom recommendations
 async function getCustomRecommendations() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
+  const criteria = document.getElementById('custom-criteria').value.trim();
+
+  if (!criteria) {
+    showError('Please enter your criteria');
     return;
   }
 
+  showLoading('Loading recommendations...', 'custom-results');
   try {
-    clearError();
-    const criteria = document.getElementById('custom-criteria').value.trim();
-
-    if (!criteria) {
-      showError('Please enter your criteria');
-      return;
-    }
-
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/recommendations/custom`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ criteria }),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to get recommendations');
-    }
-
     const data = await response.json();
-    displayRecommendations(data.recommendations, 'custom-results');
+    hideLoading();
+
+    if (data.recommendations) {
+      displayRecommendations(data.recommendations, 'custom-results');
+    } else {
+      showError('Failed to get recommendations');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error getting recommendations:', error);
+    showError('Failed to get recommendations. Please try again.');
   }
 }
 
-// Get statistics
 async function getStats() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
-    return;
-  }
-
+  showLoading('Loading statistics...', 'stats-results');
   try {
-    clearError();
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/stats`);
-
-    if (!response.ok) {
-      throw new Error('Failed to get statistics');
-    }
-
     const stats = await response.json();
+    hideLoading();
+
     displayStats(stats, 'stats-results');
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error getting stats:', error);
+    showError('Failed to load statistics. Please try again.');
   }
 }
 
 // Display functions
-function displayRecommendations(recommendations, containerId) {
-  const container = document.getElementById(containerId);
+function displayRecommendations(recommendations, elementId) {
+  const resultsElement = document.getElementById(elementId);
 
-  if (!recommendations || recommendations.length === 0) {
-    container.innerHTML = '<p>No recommendations found.</p>';
+  if (recommendations.length === 0) {
+    resultsElement.innerHTML = '<p class="no-results">No recommendations found.</p>';
     return;
   }
 
-  const html = recommendations
-    .map(
-      (rec, index) => `
-    <div class="card">
-      <h3>${index + 1}. ${escapeHtml(rec.title)}</h3>
-      <span class="author">by ${escapeHtml(rec.author)}</span>
-      <p class="reasoning">${escapeHtml(rec.reasoning)}</p>
-      <div class="card-actions">
-        ${
-          !isGuestMode
-            ? `<button class="btn btn-primary btn-sm" onclick="addToTBR('${escapeHtml(rec.title).replace(/'/g, "\\'")}', '${escapeHtml(rec.author).replace(/'/g, "\\'")}', '${escapeHtml(rec.reasoning).replace(/'/g, "\\'")}', '${rec.amazonUrl || ''}')">
-                 Add to TBR
-               </button>`
-            : ''
-        }
-        ${
-          rec.amazonUrl
-            ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
-                 View on Amazon →
-               </a>`
-            : ''
-        }
-      </div>
-    </div>
-  `
-    )
-    .join('');
+  let html = '<ol class="recommendations-list">';
+  recommendations.forEach((rec, index) => {
+    html += renderRecommendationMarkup(rec, index);
+  });
+  html += '</ol>';
 
-  container.innerHTML = html;
+  resultsElement.innerHTML = html;
 }
 
-function displayBlindspots(analysis, containerId) {
-  const container = document.getElementById(containerId);
+function displayBlindSpotsAnalysis(analysis, elementId) {
+  const resultsElement = document.getElementById(elementId);
 
-  if (!analysis) {
-    container.innerHTML = '<p>No analysis available.</p>';
-    return;
-  }
-
-  let html = '';
+  let html = '<div class="analysis-container">';
 
   // Patterns
-  if (analysis.patterns && analysis.patterns.length > 0) {
-    html += `
-      <div class="pattern-list">
-        <h3>Your Reading Patterns</h3>
-        <ul>
-          ${analysis.patterns.map((pattern) => `<li>${escapeHtml(pattern)}</li>`).join('')}
-        </ul>
-      </div>
-    `;
-  }
+  html += '<div class="analysis-section"><h3>Reading Patterns</h3><ul>';
+  analysis.patterns.forEach(pattern => {
+    html += `<li>${pattern}</li>`;
+  });
+  html += '</ul></div>';
 
-  // Blind spots
-  if (analysis.blindSpots && analysis.blindSpots.length > 0) {
-    html += '<h3 style="margin-bottom: 16px;">Blind Spots & Recommendations</h3>';
-    analysis.blindSpots.forEach((spot) => {
-      html += `
-        <div class="blindspot-section">
-          <h3>${escapeHtml(spot.category)}</h3>
-          <p class="description">${escapeHtml(spot.description)}</p>
-          ${
-            spot.recommendations && spot.recommendations.length > 0
-              ? `
-            <h4 style="margin-bottom: 12px;">Recommended Books:</h4>
-            ${spot.recommendations
-              .map(
-                (rec) => `
-              <div class="card" style="margin-bottom: 12px;">
-                <h3>${escapeHtml(rec.title)}</h3>
-                <span class="author">by ${escapeHtml(rec.author)}</span>
-                <p class="reasoning">${escapeHtml(rec.reasoning)}</p>
-                ${
-                  rec.amazonUrl
-                    ? `<a href="${escapeHtml(rec.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
-                         View on Amazon →
-                       </a>`
-                    : ''
-                }
-              </div>
-            `
-              )
-              .join('')}
-          `
-              : ''
-          }
-        </div>
-      `;
+  // Blind Spots
+  html += '<div class="analysis-section"><h3>Blind Spots & Recommendations</h3>';
+  analysis.blindSpots.forEach((blindSpot, index) => {
+    html += `
+      <div class="blind-spot-card">
+        <h4>${index + 1}. ${blindSpot.category}</h4>
+        <p>${blindSpot.description}</p>
+        <div class="blind-spot-recommendations">
+          <h5>Recommended books:</h5>
+    `;
+
+    html += '<ol class="recommendations-list nested">';
+    blindSpot.recommendations.forEach((rec, recIndex) => {
+      html += renderRecommendationMarkup(rec, recIndex);
     });
-  }
+    html += '</ol>';
 
-  // Suggested topics
-  if (analysis.suggestedTopics && analysis.suggestedTopics.length > 0) {
-    html += `
-      <div class="list-section">
-        <h3>Suggested Topics to Explore</h3>
-        <ul>
-          ${analysis.suggestedTopics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join('')}
-        </ul>
-      </div>
-    `;
-  }
+    html += '</div></div>';
+  });
+  html += '</div>';
 
-  container.innerHTML = html;
+  // Suggested Topics
+  html += '<div class="analysis-section"><h3>Suggested Topics to Explore</h3><ul>';
+  analysis.suggestedTopics.forEach(topic => {
+    html += `<li>${topic}</li>`;
+  });
+  html += '</ul></div>';
+
+  html += '</div>';
+  resultsElement.innerHTML = html;
 }
 
-function displayStats(stats, containerId) {
-  const container = document.getElementById(containerId);
+function displayStats(stats, elementId) {
+  const resultsElement = document.getElementById(elementId);
 
-  const html = `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-value">${stats.totalBooksRead}</span>
-        <span class="stat-label">Books Read</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">${stats.booksRated}</span>
-        <span class="stat-label">Books Rated</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">${stats.averageRating.toFixed(2)}/10</span>
-        <span class="stat-label">Average Rating</span>
-      </div>
+  let html = '<div class="stats-container">';
+
+  html += `
+    <div class="stat-card">
+      <div class="stat-value">${stats.totalBooksRead}</div>
+      <div class="stat-label">Books Read</div>
     </div>
-
-    ${
-      stats.topGenres && stats.topGenres.length > 0
-        ? `
-      <div class="list-section">
-        <h3>Top Genres</h3>
-        <ul>
-          ${stats.topGenres.map((genre, i) => `<li>${i + 1}. ${escapeHtml(genre)}</li>`).join('')}
-        </ul>
-      </div>
-    `
-        : ''
-    }
-
-    ${
-      stats.topAuthors && stats.topAuthors.length > 0
-        ? `
-      <div class="list-section">
-        <h3>Top Authors</h3>
-        <ul>
-          ${stats.topAuthors.map((author, i) => `<li>${i + 1}. ${escapeHtml(author)}</li>`).join('')}
-        </ul>
-      </div>
-    `
-        : ''
-    }
+    <div class="stat-card">
+      <div class="stat-value">${stats.booksRated}</div>
+      <div class="stat-label">Books Rated</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.averageRating.toFixed(1)}/10</div>
+      <div class="stat-label">Average Rating</div>
+    </div>
   `;
 
-  container.innerHTML = html;
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Theme toggle functionality
-function toggleTheme() {
-  const root = document.documentElement;
-  const themeIcon = document.getElementById('theme-icon');
-  const currentTheme = root.getAttribute('data-theme');
-
-  if (currentTheme === 'light') {
-    root.removeAttribute('data-theme');
-    themeIcon.textContent = '🌙';
-    localStorage.setItem('theme', 'dark');
-  } else {
-    root.setAttribute('data-theme', 'light');
-    themeIcon.textContent = '☀️';
-    localStorage.setItem('theme', 'light');
+  if (stats.topGenres && stats.topGenres.length > 0) {
+    html += '<div class="stat-list"><h3>Top Genres</h3><ul>';
+    stats.topGenres.forEach(genre => {
+      html += `<li>${genre}</li>`;
+    });
+    html += '</ul></div>';
   }
-}
 
-// Load saved theme on page load
-function loadTheme() {
-  const savedTheme = localStorage.getItem('theme');
-  const root = document.documentElement;
-  const themeIcon = document.getElementById('theme-icon');
-
-  if (savedTheme === 'light') {
-    root.setAttribute('data-theme', 'light');
-    themeIcon.textContent = '☀️';
-  } else {
-    root.removeAttribute('data-theme');
-    themeIcon.textContent = '🌙';
+  if (stats.topAuthors && stats.topAuthors.length > 0) {
+    html += '<div class="stat-list"><h3>Top Authors</h3><ul>';
+    stats.topAuthors.forEach(author => {
+      html += `<li>${author}</li>`;
+    });
+    html += '</ul></div>';
   }
+
+  html += '</div>';
+  resultsElement.innerHTML = html;
 }
 
-// ========== TBR (To Be Read) Functionality ==========
-
-// Helper to generate book ID
-function generateBookId(title, author) {
-  const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
-    .replace(/[^a-z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  return normalized;
-}
-
-// Load TBR list
+// TBR functions
 async function loadTBR() {
-  if (!isAuthenticated) {
-    showError('Please log in first');
-    showLoginModal();
-    return;
-  }
-
-  if (isGuestMode) {
-    showError('TBR list is not available in guest mode');
-    return;
-  }
-
+  showLoading('Loading your TBR list...', 'tbr-results');
   try {
-    clearError();
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/tbr`);
-
-    if (!response.ok) {
-      throw new Error('Failed to load TBR list');
-    }
-
     const data = await response.json();
-    displayTBR(data.tbr);
+    hideLoading();
+
+    if (data.tbr) {
+      displayTBR(data.tbr, 'tbr-results');
+    } else {
+      showError('Failed to load TBR list');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    hideLoading();
+    console.error('Error loading TBR:', error);
+    showError('Failed to load TBR list. Please try again.');
   }
 }
 
-// Add book to TBR
-async function addToTBR(title, author, reasoning, amazonUrl) {
-  if (!isAuthenticated || isGuestMode) {
-    showError('TBR list is not available in guest mode');
-    return;
-  }
-
+async function addToTBR(book) {
   try {
     const response = await fetch(`${API_BASE}/tbr`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, author, reasoning, amazonUrl }),
+      body: JSON.stringify({
+        title: book.title,
+        author: book.author,
+        reasoning: book.reasoning,
+        amazonUrl: book.amazonUrl,
+      }),
     });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to add book to TBR');
+    if (data.success) {
+      showNotification(`Added "${book.title}" to your TBR list!`, 'success');
+      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
+        loadTBR();
+      }
+    } else {
+      showNotification(data.message || 'Failed to add book to TBR', 'error');
     }
-
-    showSuccess('Book added to TBR list!');
-    return true;
   } catch (error) {
-    showError(error.message);
-    return false;
+    console.error('Error adding to TBR:', error);
+    showNotification('Failed to add book to TBR. Please try again.', 'error');
   }
 }
 
-// Remove book from TBR
 async function removeFromTBR(bookId) {
-  if (!isAuthenticated || isGuestMode) {
-    return;
-  }
-
   try {
     const response = await fetch(`${API_BASE}/tbr/${encodeURIComponent(bookId)}`, {
       method: 'DELETE',
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to remove book from TBR');
-    }
+    const data = await response.json();
 
-    // Reload TBR list
-    await loadTBR();
+    if (data.success) {
+      showNotification('Book removed from your TBR list.', 'success');
+      loadTBR();
+    } else {
+      showNotification(data.message || 'Failed to remove book.', 'error');
+    }
   } catch (error) {
-    showError(error.message);
+    console.error('Error removing from TBR:', error);
+    showNotification('Failed to remove book. Please try again.', 'error');
   }
 }
 
-// Clear entire TBR list
 async function clearTBR() {
-  if (!isAuthenticated || isGuestMode) {
-    return;
-  }
-
-  if (!confirm('Are you sure you want to clear your entire TBR list?')) {
+  if (!confirm('Clear your entire TBR list? This cannot be undone.')) {
     return;
   }
 
   try {
-    showLoading(true);
-
     const response = await fetch(`${API_BASE}/tbr`, {
       method: 'DELETE',
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to clear TBR list');
-    }
+    const data = await response.json();
 
-    // Reload empty list
-    await loadTBR();
+    if (data.success) {
+      showNotification('Your TBR list has been cleared.', 'success');
+      loadTBR();
+    } else {
+      showNotification(data.message || 'Failed to clear TBR list', 'error');
+    }
   } catch (error) {
-    showError(error.message);
-  } finally {
-    showLoading(false);
+    console.error('Error clearing TBR:', error);
+    showNotification('Failed to clear TBR list. Please try again.', 'error');
   }
 }
 
-// Display TBR list
-function displayTBR(books) {
-  const container = document.getElementById('tbr-results');
+function displayTBR(books, elementId) {
+  const resultsElement = document.getElementById(elementId);
 
-  if (!books || books.length === 0) {
-    container.innerHTML = '<p class="empty-state">Your To Be Read list is empty. Add books from recommendations!</p>';
+  if (books.length === 0) {
+    resultsElement.innerHTML = '<p class="no-results">Your TBR list is empty. Add books from recommendations!</p>';
     return;
   }
 
-  const html = books
-    .map(
-      (book) => `
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h3>${escapeHtml(book.title)}</h3>
-          <span class="author">by ${escapeHtml(book.author)}</span>
+  let html = '<ol class="recommendations-list">';
+  books.forEach((book, index) => {
+    const safeTitle = escapeHtml(book.title || 'Untitled');
+    const safeAuthor = escapeHtml(book.author || 'Unknown');
+    const safeReasoning = book.reasoning ? formatReasoning(book.reasoning) : '';
+    const addedDate = new Date(book.addedAt).toLocaleDateString();
+    html += `
+      <li class="recommendation-item">
+        <div class="recommendation-title">
+          <span class="recommendation-index">${index + 1}.</span>
+          <div>
+            <h3>${safeTitle}</h3>
+            <span class="author">by ${safeAuthor}</span>
+          </div>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="removeFromTBR('${book.id}')">
-          Remove
-        </button>
-      </div>
-      ${book.reasoning ? `<p class="reasoning">${escapeHtml(book.reasoning)}</p>` : ''}
-      <p class="text-light" style="font-size: 0.85rem; margin-top: 8px;">
-        Added: ${new Date(book.addedAt).toLocaleDateString()}
-      </p>
-      ${
-        book.amazonUrl
-          ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm amazon-link">
-               View on Amazon →
-             </a>`
-          : ''
-      }
-    </div>
-  `
-    )
-    .join('');
+        ${book.reasoning ? `<p class="reasoning">${safeReasoning}</p>` : ''}
+        <div class="recommendation-actions">
+          ${book.amazonUrl ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" class="amazon-link">View on Amazon →</a>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="removeFromTBR('${book.id}')">Remove</button>
+        </div>
+        <div class="tbr-meta">Added: ${addedDate}</div>
+      </li>
+    `;
+  });
+  html += '</ol>';
 
-  container.innerHTML = html;
+  resultsElement.innerHTML = html;
 }
 
-// ====================================================
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const currentTheme = html.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
-// Initialize on load
+  html.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+
+  // Update icon
+  const icon = document.getElementById('theme-icon');
+  icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+}
+
+// Initialize theme from localStorage
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+
+  const icon = document.getElementById('theme-icon');
+  icon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+}
+
+// Event listeners
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('BookLore Recommendations app loaded');
-  loadTheme();
+  initTheme();
   checkAuthStatus();
+
+  // Tab switching
+  document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+      if (!button.disabled) {
+        switchTab(button.dataset.tab);
+      }
+    });
+  });
 });
