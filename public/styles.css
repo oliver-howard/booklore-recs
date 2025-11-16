@@ -802,6 +802,11 @@ body {
   margin-left: 6px;
 }
 
+.admin-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .results {
   margin-top: 24px;
 }
