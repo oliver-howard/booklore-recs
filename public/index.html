@@ -11,57 +11,72 @@
     <div id="login-modal" class="modal">
       <div class="modal-content">
         <h2>Welcome to BookLore AI</h2>
-        <p class="modal-subtitle">Choose how you'd like to proceed</p>
+        <p class="modal-subtitle">Choose your data source for personalized recommendations</p>
 
-        <form id="login-form" onsubmit="handleLogin(event)">
-          <div class="form-group">
-            <label for="login-username">Username</label>
-            <input
-              type="text"
-              id="login-username"
-              placeholder="Your BookLore username"
-              autocomplete="username"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="login-password">Password</label>
-            <input
-              type="password"
-              id="login-password"
-              placeholder="Your BookLore password"
-              autocomplete="current-password"
-            />
-          </div>
-
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="remember-me" />
-              <span>Remember my username</span>
-            </label>
-          </div>
-
-          <div id="login-error" class="error hidden"></div>
-
-          <button type="submit" class="btn btn-primary btn-block">Login with BookLore</button>
-
-          <div class="divider">
-            <span>OR</span>
-          </div>
-
-          <button type="button" class="btn btn-secondary btn-block" onclick="handleGuestLogin()" style="margin-bottom: 12px;">
-            Continue as Guest (No Reading History)
+        <!-- Main Option Selection -->
+        <div id="option-selection" class="option-grid">
+          <button class="option-card" onclick="showBookLoreLogin()">
+            <div class="option-icon">📚</div>
+            <h3>BookLore</h3>
+            <p>Full personalized recommendations with persistent TBR shelf</p>
           </button>
 
-          <button type="button" class="btn btn-secondary btn-block" onclick="showGoodreadsUpload()">
-            Upload Goodreads CSV
+          <button class="option-card" onclick="showGoodreadsUpload()">
+            <div class="option-icon">📖</div>
+            <h3>Goodreads</h3>
+            <p>Upload your Goodreads library for personalized recommendations</p>
           </button>
-        </form>
+
+          <button class="option-card" onclick="handleGuestLogin()">
+            <div class="option-icon">✨</div>
+            <h3>Guest</h3>
+            <p>Try custom recommendations without reading history</p>
+          </button>
+        </div>
+
+        <!-- BookLore Login Form (hidden by default) -->
+        <div id="booklore-login-section" class="hidden">
+          <h3 style="margin-bottom: 16px;">Login to BookLore</h3>
+
+          <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label for="login-username">Username</label>
+              <input
+                type="text"
+                id="login-username"
+                placeholder="Your BookLore username"
+                autocomplete="username"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="login-password">Password</label>
+              <input
+                type="password"
+                id="login-password"
+                placeholder="Your BookLore password"
+                autocomplete="current-password"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="remember-me" />
+                <span>Remember my username</span>
+              </label>
+            </div>
+
+            <div id="login-error" class="error hidden"></div>
+
+            <button type="submit" class="btn btn-primary btn-block">Login</button>
+            <button type="button" class="btn btn-secondary btn-block" onclick="showOptionSelection()">Back</button>
+          </form>
+        </div>
 
         <!-- Goodreads CSV Upload Section (hidden by default) -->
-        <div id="goodreads-upload-section" class="hidden" style="margin-top: 20px;">
+        <div id="goodreads-upload-section" class="hidden">
           <h3 style="margin-bottom: 12px;">Upload Goodreads Library Export</h3>
-          <p class="modal-note" style="margin-bottom: 12px;">
+          <p class="modal-note" style="margin-bottom: 16px;">
             Export your Goodreads library from
             <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>
             and upload it here for personalized recommendations.
@@ -77,16 +92,10 @@
           <button type="button" class="btn btn-primary btn-block" onclick="handleCSVUpload()">
             Upload and Continue
           </button>
-          <button type="button" class="btn btn-secondary btn-block" onclick="hideGoodreadsUpload()">
-            Back to Login
+          <button type="button" class="btn btn-secondary btn-block" onclick="showOptionSelection()">
+            Back
           </button>
         </div>
-
-        <p class="modal-note">
-          <strong>BookLore Account:</strong> Full personalized recommendations based on your reading history.<br>
-          <strong>Goodreads CSV:</strong> Upload your Goodreads library for personalized recommendations.<br>
-          <strong>Guest Mode:</strong> Use custom recommendations without any reading history.
-        </p>
       </div>
     </div>
 

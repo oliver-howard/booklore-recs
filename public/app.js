@@ -164,19 +164,30 @@ async function handleGuestLogin() {
   }
 }
 
-// Show Goodreads CSV upload section
-function showGoodreadsUpload() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('goodreads-upload-section').classList.remove('hidden');
-}
-
-// Hide Goodreads CSV upload section
-function hideGoodreadsUpload() {
-  document.getElementById('login-form').style.display = 'block';
+// Show option selection screen
+function showOptionSelection() {
+  document.getElementById('option-selection').classList.remove('hidden');
+  document.getElementById('booklore-login-section').classList.add('hidden');
   document.getElementById('goodreads-upload-section').classList.add('hidden');
+
+  // Clear any errors
+  document.getElementById('login-error').classList.add('hidden');
   document.getElementById('csv-upload-error').classList.add('hidden');
   document.getElementById('csv-upload-success').classList.add('hidden');
-  document.getElementById('csv-file-input').value = '';
+}
+
+// Show BookLore login form
+function showBookLoreLogin() {
+  document.getElementById('option-selection').classList.add('hidden');
+  document.getElementById('booklore-login-section').classList.remove('hidden');
+  document.getElementById('goodreads-upload-section').classList.add('hidden');
+}
+
+// Show Goodreads CSV upload section
+function showGoodreadsUpload() {
+  document.getElementById('option-selection').classList.add('hidden');
+  document.getElementById('booklore-login-section').classList.add('hidden');
+  document.getElementById('goodreads-upload-section').classList.remove('hidden');
 }
 
 // Handle CSV file upload
@@ -243,7 +254,6 @@ async function handleCSVUpload() {
     setTimeout(() => {
       showUserInfo(`Guest (${data.booksCount} books from Goodreads)`);
       hideLoginModal();
-      hideGoodreadsUpload();
       updateUIForMode();
       showLoading(false);
     }, 1500);

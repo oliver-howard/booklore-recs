@@ -212,7 +212,7 @@ header h1 {
   padding: 40px;
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
-  max-width: 450px;
+  max-width: 800px;
   width: 90%;
   animation: modalSlideIn 0.3s ease;
   border: 1px solid var(--border);
@@ -762,4 +762,80 @@ input[type="file"]::file-selector-button {
 input[type="file"]::file-selector-button:hover {
   background: var(--clr-accent-a30);
   transform: translateY(-1px);
+}
+
+/* Option Grid for Login Modal */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin: 32px 0 24px 0;
+}
+
+.option-card {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.option-card:hover {
+  border-color: var(--clr-accent-a20);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.2);
+}
+
+.option-card:active {
+  transform: translateY(-2px);
+}
+
+.option-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.option-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.option-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Responsive option grid */
+@media (max-width: 900px) {
+  .option-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .option-card {
+    padding: 24px 20px;
+    min-height: 160px;
+  }
+
+  .option-icon {
+    font-size: 3rem;
+  }
+
+  .modal-content {
+    max-width: 500px;
+  }
 }
