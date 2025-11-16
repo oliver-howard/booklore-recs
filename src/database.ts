@@ -26,7 +26,8 @@ db.exec(`
     booklore_username TEXT,
     booklore_password TEXT,
     goodreads_readings TEXT,
-    data_source_preference TEXT NOT NULL DEFAULT 'auto'
+    data_source_preference TEXT NOT NULL DEFAULT 'auto',
+    is_admin INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS tbr_books (
@@ -44,11 +45,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tbr_user_id ON tbr_books(user_id);
 `);
 
-try {
-  db.exec(`ALTER TABLE users ADD COLUMN data_source_preference TEXT NOT NULL DEFAULT 'auto'`);
-} catch (error: any) {
-  if (!String(error?.message).includes('duplicate column name')) {
-    throw error;
+const alterColumns = [
+  `ALTER TABLE users ADD COLUMN data_source_preference TEXT NOT NULL DEFAULT 'auto'`,
+  `ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`,
+];
+
+for (const statement of alterColumns) {
+  try {
+    db.exec(statement);
+  } catch (error: any) {
+    if (!String(error?.message).includes('duplicate column name')) {
+      throw error;
+    }
   }
 }
 
@@ -60,6 +68,7 @@ export interface User {
   booklorePassword?: string;
   goodreadsReadings?: UserReading[];
   dataSourcePreference: DataSourcePreference;
+  isAdmin: boolean;
 }
 
 export class DatabaseService {
@@ -81,18 +90,21 @@ export class DatabaseService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     try {
+      const countRow = db.prepare(`SELECT COUNT(*) as count FROM users`).get() as any;
+      const isFirstUser = countRow.count === 0;
       const stmt = db.prepare(`
-        INSERT INTO users (username, password_hash, data_source_preference)
-        VALUES (?, ?, 'auto')
+        INSERT INTO users (username, password_hash, data_source_preference, is_admin)
+        VALUES (?, ?, 'auto', ?)
       `);
 
-      const result = stmt.run(username, passwordHash);
+      const result = stmt.run(username, passwordHash, isFirstUser ? 1 : 0);
 
       return {
         id: result.lastInsertRowid as number,
         username,
         createdAt: new Date().toISOString(),
         dataSourcePreference: 'auto',
+        isAdmin: isFirstUser,
       };
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT') {
@@ -109,7 +121,7 @@ export class DatabaseService {
     const stmt = db.prepare(`
       SELECT id, username, password_hash, created_at,
              booklore_username, booklore_password, goodreads_readings,
-             data_source_preference
+             data_source_preference, is_admin
       FROM users
       WHERE username = ?
     `);
@@ -134,6 +146,7 @@ export class DatabaseService {
       booklorePassword: row.booklore_password || undefined,
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
       dataSourcePreference: row.data_source_preference || 'auto',
+      isAdmin: !!row.is_admin,
     };
   }
 
@@ -144,7 +157,7 @@ export class DatabaseService {
     const stmt = db.prepare(`
       SELECT id, username, created_at,
              booklore_username, booklore_password, goodreads_readings,
-             data_source_preference
+             data_source_preference, is_admin
       FROM users
       WHERE id = ?
     `);
@@ -163,6 +176,7 @@ export class DatabaseService {
       booklorePassword: row.booklore_password || undefined,
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
       dataSourcePreference: row.data_source_preference || 'auto',
+      isAdmin: !!row.is_admin,
     };
   }
 
@@ -300,6 +314,72 @@ export class DatabaseService {
     `);
 
     stmt.run(preference, userId);
+  }
+
+  static getAllUsers(): Array<{
+    id: number;
+    username: string;
+    createdAt: string;
+    isAdmin: boolean;
+    hasBookLore: boolean;
+    hasGoodreads: boolean;
+  }> {
+    const stmt = db.prepare(`
+      SELECT id, username, created_at, is_admin,
+             booklore_username, booklore_password, goodreads_readings
+      FROM users
+      ORDER BY created_at ASC
+    `);
+
+    const rows = stmt.all() as any[];
+
+    return rows.map((row) => ({
+      id: row.id,
+      username: row.username,
+      createdAt: row.created_at,
+      isAdmin: !!row.is_admin,
+      hasBookLore: !!(row.booklore_username && row.booklore_password),
+      hasGoodreads: (() => {
+        if (!row.goodreads_readings) {
+          return false;
+        }
+        try {
+          return JSON.parse(row.goodreads_readings).length > 0;
+        } catch {
+          return false;
+        }
+      })(),
+    }));
+  }
+
+  static deleteUser(userId: number): void {
+    const stmt = db.prepare(`DELETE FROM users WHERE id = ?`);
+    stmt.run(userId);
+  }
+
+  static async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters long');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const stmt = db.prepare(`
+      UPDATE users
+      SET password_hash = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(passwordHash, userId);
+  }
+
+  static updateAdminStatus(userId: number, isAdmin: boolean): void {
+    const stmt = db.prepare(`
+      UPDATE users
+      SET is_admin = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(isAdmin ? 1 : 0, userId);
   }
 
 }

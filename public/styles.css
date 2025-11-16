@@ -776,6 +776,32 @@ body {
   margin-top: 12px;
 }
 
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.admin-table th {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.badge {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  margin-left: 6px;
+}
+
 .results {
   margin-top: 24px;
 }

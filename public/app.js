@@ -6,10 +6,12 @@ let isAuthenticated = false;
 let hasReadingHistory = false;
 let hasBookLore = false;
 let hasGoodreads = false;
+let isAdmin = false;
 let notificationTimeout;
 let tbrCache = [];
 let dataSourcePreference = 'auto';
 let canToggleDataSource = false;
+let adminUsers = [];
 
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
@@ -57,6 +59,7 @@ function clearAppState() {
   tbrCache = [];
   dataSourcePreference = 'auto';
   canToggleDataSource = false;
+  isAdmin = false;
   updateDataSourceToggle();
   updateHeroPreviewCard();
 }
@@ -73,6 +76,7 @@ async function checkAuthStatus() {
       hasReadingHistory = data.hasReadingHistory || false;
       hasBookLore = data.hasBookLore || false;
       hasGoodreads = data.hasGoodreads || false;
+      isAdmin = !!data.isAdmin;
       dataSourcePreference = data.dataSourcePreference || 'auto';
       canToggleDataSource = !!data.canChooseDataSource;
       hideLoginModal();
@@ -81,6 +85,9 @@ async function checkAuthStatus() {
       updateUIForMode();
       updateSettingsUI(data);
       updateDataSourceToggle();
+      if (isAdmin) {
+        await loadAdminUsers();
+      }
 
       if (isNewlyAuthenticated) {
         loadTBR();
@@ -90,6 +97,9 @@ async function checkAuthStatus() {
       hasReadingHistory = false;
       hasBookLore = false;
       hasGoodreads = false;
+      isAdmin = false;
+      dataSourcePreference = 'auto';
+      canToggleDataSource = false;
       clearAppState();
       showLoginModal();
     }
@@ -168,6 +178,19 @@ function updateSettingsUI(data) {
   } else {
     goodreadsStatus.textContent = 'No data uploaded';
     goodreadsStatus.style.color = 'var(--text-secondary)';
+  }
+
+  if (data.canChooseDataSource) {
+    document.getElementById('data-source-section')?.classList.remove('hidden');
+  } else {
+    document.getElementById('data-source-section')?.classList.add('hidden');
+  }
+
+  if (data.isAdmin) {
+    document.getElementById('admin-section')?.classList.remove('hidden');
+    renderAdminUsers();
+  } else {
+    document.getElementById('admin-section')?.classList.add('hidden');
   }
 }
 
@@ -353,6 +376,160 @@ async function setDataSourcePreference(preference) {
   } catch (error) {
     console.error('Error updating data source preference:', error);
     showNotification('Failed to update data source preference. Please try again.', 'error');
+  }
+}
+
+async function loadAdminUsers() {
+  if (!isAdmin) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API_BASE}/admin/users`);
+    const data = await response.json();
+    adminUsers = data.users || [];
+    renderAdminUsers();
+  } catch (error) {
+    console.error('Error loading users:', error);
+    showNotification('Failed to load user list', 'error');
+  }
+}
+
+function renderAdminUsers() {
+  const section = document.getElementById('admin-section');
+  const list = document.getElementById('admin-users-list');
+
+  if (!section || !list) {
+    return;
+  }
+
+  if (!isAdmin) {
+    section.classList.add('hidden');
+    return;
+  }
+
+  section.classList.remove('hidden');
+
+  if (!adminUsers || adminUsers.length === 0) {
+    list.innerHTML = '<p class="settings-description">No users found.</p>';
+    return;
+  }
+
+  const rows = adminUsers
+    .map(
+      (user) => `
+        <tr>
+          <td>${user.username}${user.isAdmin ? ' <span class="badge">Admin</span>' : ''}</td>
+          <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+          <td>${user.hasBookLore ? '✔︎' : '—'}</td>
+          <td>${user.hasGoodreads ? '✔︎' : '—'}</td>
+          <td>
+            <button class="btn btn-sm btn-secondary" onclick="promptPasswordReset(${user.id})">Change Password</button>
+            <button class="btn btn-sm btn-secondary" onclick="toggleAdmin(${user.id}, ${user.isAdmin})">
+              ${user.isAdmin ? 'Remove Admin' : 'Make Admin'}
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUserAccount(${user.id})">Delete</button>
+          </td>
+        </tr>
+      `
+    )
+    .join('');
+
+  list.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Joined</th>
+          <th>BookLore</th>
+          <th>Goodreads</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+}
+
+async function deleteUserAccount(userId) {
+  if (!confirm('Delete this user? This action cannot be undone.')) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      showNotification(data.message || 'Failed to delete user', 'error');
+      return;
+    }
+    showNotification('User deleted', 'success');
+    await loadAdminUsers();
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    showNotification('Failed to delete user', 'error');
+  }
+}
+
+function promptPasswordReset(userId) {
+  const newPassword = prompt('Enter a new password for this user (min 6 characters):');
+  if (!newPassword) {
+    return;
+  }
+  if (newPassword.length < 6) {
+    alert('Password must be at least 6 characters.');
+    return;
+  }
+  updateUserPassword(userId, newPassword);
+}
+
+async function updateUserPassword(userId, password) {
+  try {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      showNotification(data.message || 'Failed to update password', 'error');
+      return;
+    }
+    showNotification('Password updated', 'success');
+  } catch (error) {
+    console.error('Error updating password:', error);
+    showNotification('Failed to update password', 'error');
+  }
+}
+
+async function toggleAdmin(userId, currentStatus) {
+  if (
+    !confirm(
+      currentStatus
+        ? 'Remove admin privileges from this user?'
+        : 'Grant admin privileges to this user?'
+    )
+  ) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdmin: !currentStatus }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      showNotification(data.message || 'Failed to update role', 'error');
+      return;
+    }
+    showNotification('Role updated', 'success');
+    await loadAdminUsers();
+  } catch (error) {
+    console.error('Error updating role:', error);
+    showNotification('Failed to update role', 'error');
   }
 }
 

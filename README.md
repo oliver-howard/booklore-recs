@@ -32,6 +32,9 @@ Modern LLM-powered book recommendations with a full web UI, local user accounts,
 
 - **Responsive, Themed UI**
   - Dark/light toggle, tabbed navigation, contextual loaders, inline notifications, and detailed cards that explain *why* each book was suggested
+- **Admin Controls**
+  - The very first account created automatically becomes an administrator
+  - Admins can change passwords, delete accounts, and grant/revoke admin access from the Settings panel
 
 ## Tech Stack
 
