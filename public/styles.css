@@ -151,32 +151,196 @@ body {
   margin: 0 auto;
 }
 
-header {
-  margin-bottom: 40px;
-  padding: 40px 20px;
-  background: linear-gradient(135deg, var(--clr-primary-a0) 0%, var(--clr-info-a0) 100%);
-  color: var(--clr-light-a0);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-}
-
-.header-content {
+.top-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
+  margin-bottom: 20px;
 }
 
-header h1 {
-  font-size: 2.5rem;
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mini-logo {
+  height: 28px;
+  width: auto;
+}
+
+.nav-pill {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--clr-light-a0);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.nav-pill:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.hero {
+  margin-bottom: 40px;
+  padding: 48px;
+  background: linear-gradient(135deg, var(--clr-primary-a0) 0%, var(--clr-info-a0) 100%);
+  color: var(--clr-light-a0);
+  border-radius: 28px;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+}
+
+.hero-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+  align-items: center;
+}
+
+.hero-text h1 {
+  font-size: clamp(2.6rem, 4vw, 3.2rem);
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.hero-tagline {
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 24px;
+  max-width: 480px;
+}
+
+.hero-cta {
+  font-size: 1rem;
+  padding: 14px 28px;
+  box-shadow: var(--shadow-lg);
+}
+
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-text .subtitle {
+  margin-top: 4px;
+}
+
+.logo {
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+}
+
+.hero-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.mascot-card {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+
+.mascot {
+  height: 110px;
+  width: auto;
+  object-fit: contain;
+}
+
+.preview-card {
+  background: rgba(15, 23, 42, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 320px;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+}
+
+.preview-label {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.preview-title {
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+}
+
+.preview-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  padding-bottom: 2px;
+  transition: border-color 0.2s;
+}
+
+.preview-link:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.preview-author {
+  font-style: italic;
   margin-bottom: 10px;
-  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.preview-copy {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dark-logo {
+  display: none;
+}
+
+:root[data-theme='light'] .light-logo {
+  display: block;
+}
+
+:root[data-theme='light'] .dark-logo {
+  display: none;
+}
+
+:root[data-theme='dark'] .light-logo {
+  display: none;
+}
+
+:root[data-theme='dark'] .dark-logo {
+  display: block;
 }
 
 .subtitle {
   font-size: 1.1rem;
   opacity: 0.9;
+}
+
+.hero .subtitle {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .user-info {
@@ -825,10 +989,6 @@ header h1 {
 }
 
 @media (max-width: 768px) {
-  header h1 {
-    font-size: 2rem;
-  }
-
   .tabs {
     flex-wrap: wrap;
   }
@@ -848,6 +1008,25 @@ header h1 {
     width: 48px;
     height: 48px;
     font-size: 1.25rem;
+  }
+
+  .hero {
+    padding: 32px;
+  }
+
+  .hero-content {
+    grid-template-columns: 1fr;
+  }
+
+  .top-nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .user-info {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 

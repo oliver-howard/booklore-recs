@@ -27,6 +27,8 @@ services:
       - PORT=${PORT:-3000}
       - NODE_ENV=production
       - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
+    volumes:
+      - ./data:/usr/src/app/data
     env_file:
       - .env
     restart: unless-stopped

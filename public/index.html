@@ -57,17 +57,63 @@
     </div>
 
     <div class="container">
-      <header>
-        <div class="header-content">
-          <div>
+      <div class="top-nav">
+        <div class="nav-brand">
+          <img
+            src="/assets/logo/light-theme-logo.png"
+            alt="Book Rex"
+            class="mini-logo light-logo"
+          />
+          <img
+            src="/assets/logo/dark-theme-logo.png"
+            alt="Book Rex"
+            class="mini-logo dark-logo"
+          />
+          <span>Book Rex</span>
+        </div>
+        <div id="user-info" class="user-info hidden">
+          <span id="username-display"></span>
+          <button class="nav-pill" id="stats-header-btn" onclick="showStats()">Stats</button>
+          <button class="nav-pill" onclick="showSettings()">Settings</button>
+          <button class="nav-pill" onclick="handleLogout()">Logout</button>
+        </div>
+      </div>
+
+      <header class="hero">
+        <div class="hero-content">
+          <div class="hero-text">
             <h1>Book Rex</h1>
-            <p class="subtitle">Personalized book recommendations powered by AI</p>
+            <p class="hero-tagline">
+              Personalized book recommendations powered by AI. Connect your reading history and
+              discover fresh picks.
+            </p>
+            <button class="btn btn-primary hero-cta" onclick="getSimilarRecommendations()">
+              Get my next book
+            </button>
           </div>
-          <div id="user-info" class="user-info hidden">
-            <span id="username-display"></span>
-            <button class="btn btn-secondary btn-sm" id="stats-header-btn" onclick="showStats()">Stats</button>
-            <button class="btn btn-secondary btn-sm" onclick="showSettings()">Settings</button>
-            <button class="btn btn-secondary btn-sm" onclick="handleLogout()">Logout</button>
+          <div class="hero-visual">
+            <div class="mascot-card">
+              <img
+                src="/assets/logo/light-theme-logo.png"
+                alt="Book Rex Mascot"
+                class="mascot light-logo"
+              />
+              <img
+                src="/assets/logo/dark-theme-logo.png"
+                alt="Book Rex Mascot"
+                class="mascot dark-logo"
+              />
+            </div>
+            <div class="preview-card hidden" id="hero-preview-card">
+              <p class="preview-label">Up next on your TBR</p>
+              <h3 class="preview-title">
+                <a href="#" target="_blank" id="hero-preview-title" class="preview-link">TBR is empty</a>
+              </h3>
+              <p class="preview-author" id="hero-preview-author"></p>
+              <p class="preview-copy" id="hero-preview-reasoning">
+                Add a book to your TBR to see it featured here.
+              </p>
+            </div>
           </div>
         </div>
       </header>

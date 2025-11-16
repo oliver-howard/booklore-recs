@@ -7,6 +7,7 @@ let hasReadingHistory = false;
 let hasBookLore = false;
 let hasGoodreads = false;
 let notificationTimeout;
+let tbrCache = [];
 let authMode = 'login';
 
 function clearAppState() {
@@ -34,6 +35,9 @@ function clearAppState() {
 
   const notificationElement = document.getElementById('notification');
   notificationElement?.classList.add('hidden');
+
+  tbrCache = [];
+  updateHeroPreviewCard();
 }
 
 // Check authentication status
@@ -752,8 +756,12 @@ async function loadTBR() {
     hideLoading();
 
     if (data.tbr) {
+      tbrCache = data.tbr;
       displayTBR(data.tbr, 'tbr-results');
+      updateHeroPreviewCard();
     } else {
+      tbrCache = [];
+      updateHeroPreviewCard();
       showError('Failed to load TBR list');
     }
   } catch (error) {
@@ -782,6 +790,9 @@ async function addToTBR(book) {
       showNotification(`Added "${book.title}" to your TBR list!`, 'success');
       if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
         loadTBR();
+      } else if (data.book) {
+        tbrCache = [data.book, ...tbrCache];
+        updateHeroPreviewCard();
       }
     } else {
       showNotification(data.message || 'Failed to add book to TBR', 'error');
@@ -841,6 +852,7 @@ function displayTBR(books, elementId) {
 
   if (books.length === 0) {
     resultsElement.innerHTML = '<p class="no-results">Your TBR list is empty. Add books from recommendations!</p>';
+    updateHeroPreviewCard();
     return;
   }
 
@@ -871,6 +883,39 @@ function displayTBR(books, elementId) {
   html += '</ol>';
 
   resultsElement.innerHTML = html;
+  updateHeroPreviewCard();
+}
+
+function updateHeroPreviewCard() {
+  const card = document.getElementById('hero-preview-card');
+  const titleEl = document.getElementById('hero-preview-title');
+  const authorEl = document.getElementById('hero-preview-author');
+  const reasoningEl = document.getElementById('hero-preview-reasoning');
+
+  if (!card || !titleEl || !authorEl || !reasoningEl) {
+    return;
+  }
+
+  if (!tbrCache || tbrCache.length === 0) {
+    card.classList.add('hidden');
+    titleEl.textContent = 'TBR is empty';
+    authorEl.textContent = '';
+    reasoningEl.textContent = 'Add a book to your TBR to see it featured here.';
+    return;
+  }
+
+  const index = Math.floor(Math.random() * tbrCache.length);
+  const topBook = tbrCache[index];
+  card.classList.remove('hidden');
+  titleEl.textContent = topBook.title || 'Upcoming book';
+  if (topBook.amazonUrl) {
+    titleEl.setAttribute('href', topBook.amazonUrl);
+  } else {
+    titleEl.removeAttribute('href');
+  }
+  authorEl.textContent = topBook.author ? `by ${topBook.author}` : '';
+  reasoningEl.textContent =
+    topBook.reasoning || 'Recently added to your TBR. Start reading it next!';
 }
 
 // Theme toggle
