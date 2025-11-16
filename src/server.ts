@@ -578,7 +578,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🚀 BookLore Recommendations Server`);
+console.log(`\n🚀 Book Rex Server`);
   console.log(`   Server running at http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health`);
   console.log(`\n   Press Ctrl+C to stop\n`);

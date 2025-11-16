@@ -1,4 +1,4 @@
-# BookLore AI Recommendations
+# Book Rex
 
 Modern LLM-powered book recommendations with a full web UI, local user accounts, flexible data sources, and tight integrations with BookLore, Goodreads, Amazon, and Hardcover.
 

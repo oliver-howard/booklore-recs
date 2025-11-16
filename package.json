@@ -1,7 +1,7 @@
 {
-  "name": "booklore-ai-recommendations",
+  "name": "book-rex",
   "version": "1.0.0",
-  "description": "AI-powered book recommendation system using BookLore API",
+  "description": "Book Rex – AI-powered book recommendations with BookLore/Goodreads integrations",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

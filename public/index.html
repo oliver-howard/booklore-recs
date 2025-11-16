@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BookLore AI Recommendations</title>
+    <title>Book Rex</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <!-- Login Modal -->
     <div id="login-modal" class="modal">
       <div class="modal-content">
-        <h2>Welcome to BookLore AI</h2>
+        <h2>Welcome to Book Rex</h2>
         <p id="auth-modal-subtitle" class="modal-subtitle">Log in to your account</p>
 
         <!-- Login/Register Selection -->
@@ -60,11 +60,12 @@
       <header>
         <div class="header-content">
           <div>
-            <h1>BookLore AI Recommendations</h1>
+            <h1>Book Rex</h1>
             <p class="subtitle">Personalized book recommendations powered by AI</p>
           </div>
           <div id="user-info" class="user-info hidden">
             <span id="username-display"></span>
+            <button class="btn btn-secondary btn-sm" id="stats-header-btn" onclick="showStats()">Stats</button>
             <button class="btn btn-secondary btn-sm" onclick="showSettings()">Settings</button>
             <button class="btn btn-secondary btn-sm" onclick="handleLogout()">Logout</button>
           </div>
@@ -85,8 +86,6 @@
         <button class="tab-button" data-tab="blindspots">Blind Spots</button>
         <button class="tab-button" data-tab="custom">Custom</button>
         <button class="tab-button" data-tab="tbr">To Be Read</button>
-        <button class="tab-button" data-tab="stats">Statistics</button>
-        <button class="tab-button" data-tab="settings">Settings</button>
       </nav>
 
       <div class="tab-content">
@@ -163,7 +162,6 @@
             <h2>Your Reading Statistics</h2>
             <p>Overview of your reading history</p>
           </div>
-          <button class="btn btn-primary" onclick="getStats()">Load Statistics</button>
           <div id="stats-results" class="results"></div>
         </div>
 

@@ -103,6 +103,21 @@ function updateUIForMode() {
       switchTab('custom');
     }
   }
+
+  const statsHeaderBtn = document.getElementById('stats-header-btn');
+  if (statsHeaderBtn) {
+    if (hasReadingHistory) {
+      statsHeaderBtn.disabled = false;
+      statsHeaderBtn.title = '';
+      statsHeaderBtn.style.opacity = '1';
+      statsHeaderBtn.style.cursor = 'pointer';
+    } else {
+      statsHeaderBtn.disabled = true;
+      statsHeaderBtn.title = 'Connect a data source in Settings to view statistics';
+      statsHeaderBtn.style.opacity = '0.5';
+      statsHeaderBtn.style.cursor = 'not-allowed';
+    }
+  }
 }
 
 // Update settings UI based on current configuration
@@ -221,6 +236,15 @@ async function handleAuth(event) {
 // Settings functions
 function showSettings() {
   switchTab('settings');
+}
+
+function showStats() {
+  if (!hasReadingHistory) {
+    showError('Connect BookLore or upload a Goodreads CSV to view statistics.');
+    return;
+  }
+  switchTab('stats');
+  getStats();
 }
 
 async function saveBookLoreCredentials(event) {
@@ -683,22 +707,24 @@ function displayStats(stats, elementId) {
   let html = '<div class="stats-container">';
 
   html += `
-    <div class="stat-card">
-      <div class="stat-value">${stats.totalBooksRead}</div>
-      <div class="stat-label">Books Read</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value">${stats.booksRated}</div>
-      <div class="stat-label">Books Rated</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value">${stats.averageRating.toFixed(1)}/10</div>
-      <div class="stat-label">Average Rating</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">${stats.totalBooksRead}</div>
+        <div class="stat-label">Books Read</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${stats.booksRated}</div>
+        <div class="stat-label">Books Rated</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${stats.averageRating.toFixed(1)}/10</div>
+        <div class="stat-label">Average Rating</div>
+      </div>
     </div>
   `;
 
   if (stats.topGenres && stats.topGenres.length > 0) {
-    html += '<div class="stat-list"><h3>Top Genres</h3><ul>';
+    html += '<div class="list-section"><h3>Top Genres</h3><ul>';
     stats.topGenres.forEach(genre => {
       html += `<li>${genre}</li>`;
     });
@@ -706,7 +732,7 @@ function displayStats(stats, elementId) {
   }
 
   if (stats.topAuthors && stats.topAuthors.length > 0) {
-    html += '<div class="stat-list"><h3>Top Authors</h3><ul>';
+    html += '<div class="list-section"><h3>Top Authors</h3><ul>';
     stats.topAuthors.forEach(author => {
       html += `<li>${author}</li>`;
     });
