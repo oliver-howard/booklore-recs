@@ -1,33 +1,34 @@
-# Use Node.js LTS version
-FROM node:20-alpine
+# syntax=docker/dockerfile:1.6
 
-# Set working directory
+# Build stage pinned to linux/amd64 so native modules target AMD-compatible Linux
+FROM --platform=linux/amd64 node:20-bookworm-slim AS builder
 WORKDIR /app
 
-# Copy package files
+# Install build tooling for native deps like bcrypt / better-sqlite3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY . .
-
-# Build TypeScript
 RUN npm run build
 
-# Copy public files to dist
-RUN cp -r public dist/
+# Production runtime (linux/amd64)
+FROM --platform=linux/amd64 node:20-bookworm-slim AS runner
+WORKDIR /app
 
-# Expose port
-EXPOSE 3000
-
-# Set environment to production
 ENV NODE_ENV=production
 
-# Health check
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start the web server
 CMD ["node", "dist/server.js"]

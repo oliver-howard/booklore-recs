@@ -32,6 +32,11 @@ docker-compose up -d
 
 `docker-compose.yml` mounts `./data:/usr/src/app/data`, so container restarts keep your DB. Update `.env` for AI keys and `SESSION_SECRET` before launching.
 
+### AMD/Linux Compatibility
+
+- Docker builds are pinned to the `linux/amd64` platform in both the `Dockerfile` and `docker-compose.yml`, ensuring images you create on Apple Silicon or other hosts run on AMD-based Linux servers.
+- The `linux-amd-build` GitHub Action (see `.github/workflows/linux-amd-build.yml`) runs `npm ci`, `npm run build`, and builds the Docker image for `linux/amd64` on every push/PR so regressions are caught early.
+
 ## Configuration Notes
 
 - **AI Providers**: configure `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY` plus `DEFAULT_AI_PROVIDER` in `.env`.

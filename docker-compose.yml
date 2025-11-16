@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   booklore-recs:
+    platform: linux/amd64
     build: .
     container_name: booklore-recommendations
     ports:
