@@ -8,6 +8,7 @@ import { validateConfig } from './config.js';
 import { Recommendation, ReadingAnalysis, TBRBook, UserReading, DataSourcePreference } from './types.js';
 import { DatabaseService } from './database.js';
 import { GoodreadsParser } from './goodreads-parser.js';
+import { logger, requestLogger, currentLogLevel } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,29 +16,73 @@ const __dirname = path.dirname(__filename);
 // Validate configuration on startup (but make BookLore credentials optional for web mode)
 try {
   validateConfig();
+  logger.debug('Configuration validated successfully');
 } catch (error) {
   // In web mode, BookLore credentials are provided by users via UI
-  console.log('Note: BookLore credentials will be provided via web interface');
+  logger.warn('Configuration validation warning (expected in web mode)', {
+    message: error instanceof Error ? error.message : 'Unknown error',
+  });
 }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+function resolveTrustProxySetting(): any {
+  const raw = process.env.TRUST_PROXY;
+  if (raw === undefined || raw.trim() === '') {
+    return process.env.NODE_ENV === 'production' ? 1 : undefined;
+  }
+
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'false' || normalized === '0') {
+    return undefined;
+  }
+  if (normalized === 'true') {
+    return true;
+  }
+
+  const numeric = Number(raw);
+  if (!Number.isNaN(numeric)) {
+    return numeric;
+  }
+
+  return raw;
+}
+
+const trustProxySetting = resolveTrustProxySetting();
+if (trustProxySetting !== undefined) {
+  app.set('trust proxy', trustProxySetting);
+  logger.info('Trust proxy enabled', { trustProxy: trustProxySetting });
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'booklore-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    },
-  })
-);
+const secureCookies =
+  process.env.SESSION_SECURE_COOKIES !== undefined
+    ? process.env.SESSION_SECURE_COOKIES === 'true'
+    : process.env.NODE_ENV === 'production';
+const sessionConfig: session.SessionOptions = {
+  secret: process.env.SESSION_SECRET || 'booklore-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    httpOnly: true,
+    secure: secureCookies,
+  },
+};
+
+app.use(session(sessionConfig));
+app.use(requestLogger);
+
+logger.info('Session middleware configured', {
+  secureCookies,
+  cookieMaxAgeMs: sessionConfig.cookie?.maxAge,
+  nodeEnv: process.env.NODE_ENV || 'development',
+  logLevel: currentLogLevel,
+  trustProxy: trustProxySetting ?? false,
+});
 
 // Serve static files from public directory
 // In development, serve from src/../public
@@ -59,15 +104,26 @@ const sessionServices = new Map<string, RecommendationService>();
 // Initialize recommendation service for a user session
 async function getService(req: Request): Promise<RecommendationService> {
   const sessionId = req.sessionID;
+  logger.debug('Fetching RecommendationService for session', {
+    sessionId,
+    userId: req.session.userId,
+  });
 
   // Check if user is authenticated
   if (!req.session.userId) {
+    logger.warn('Attempted to access recommendation service without authentication', {
+      sessionId,
+    });
     throw new Error('Not authenticated. Please log in first.');
   }
 
   // Get user from database
   const user = DatabaseService.getUserById(req.session.userId);
   if (!user) {
+    logger.warn('User not found for session', {
+      sessionId,
+      userId: req.session.userId,
+    });
     throw new Error('User not found');
   }
 
@@ -75,7 +131,10 @@ async function getService(req: Request): Promise<RecommendationService> {
   let service = sessionServices.get(sessionId);
 
   if (!service) {
-    console.log('Creating new service instance for session:', sessionId.substring(0, 8) + '...');
+    logger.debug('Creating new RecommendationService instance', {
+      sessionId,
+      userId: user.id,
+    });
 
     // Create service with user's configured data sources
     service = new RecommendationService(
@@ -89,10 +148,17 @@ async function getService(req: Request): Promise<RecommendationService> {
     // Only initialize (authenticate with BookLore) if credentials are configured
     if (user.bookloreUsername && user.booklorePassword) {
       await service.initialize();
-      console.log('Service initialized successfully for user:', user.username);
+      logger.info('BookLore service initialized', {
+        username: user.username,
+        sessionId,
+      });
     } else {
       const readingsCount = user.goodreadsReadings?.length || 0;
-      console.log(`Service created for user ${user.username} (${readingsCount} books from Goodreads CSV)`);
+      logger.info('Service ready using Goodreads data only', {
+        username: user.username,
+        readingsCount,
+        sessionId,
+      });
     }
 
     sessionServices.set(sessionId, service);
@@ -150,6 +216,10 @@ app.post(
     const { username, password } = req.body;
 
     if (!username || !password) {
+      logger.warn('Registration attempt missing credentials', {
+        usernameProvided: Boolean(username),
+        ip: req.ip,
+      });
       return res.status(400).json({
         success: false,
         message: 'Username and password are required',
@@ -157,11 +227,20 @@ app.post(
     }
 
     try {
+      logger.info('Registration attempt', {
+        username,
+        ip: req.ip,
+      });
       const user = await DatabaseService.createUser(username, password);
 
       // Log user in immediately
       req.session.userId = user.id;
       req.session.initialized = true;
+
+      logger.info('User registered successfully', {
+        username: user.username,
+        sessionId: req.sessionID,
+      });
 
       res.json({
         success: true,
@@ -169,6 +248,10 @@ app.post(
         username: user.username,
       });
     } catch (error) {
+      logger.warn('Registration failed', {
+        username,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : 'Registration failed',
@@ -184,6 +267,10 @@ app.post(
     const { username, password } = req.body;
 
     if (!username || !password) {
+      logger.warn('Login attempt missing credentials', {
+        usernameProvided: Boolean(username),
+        ip: req.ip,
+      });
       return res.status(400).json({
         success: false,
         message: 'Username and password are required',
@@ -191,10 +278,21 @@ app.post(
     }
 
     try {
+      logger.info('Login attempt', {
+        username,
+        ip: req.ip,
+        sessionId: req.sessionID,
+      });
       const user = await DatabaseService.authenticateUser(username, password);
 
       req.session.userId = user.id;
       req.session.initialized = true;
+
+      logger.info('Login successful', {
+        username: user.username,
+        userId: user.id,
+        sessionId: req.sessionID,
+      });
 
       res.json({
         success: true,
@@ -202,6 +300,12 @@ app.post(
         username: user.username,
       });
     } catch (error) {
+      logger.warn('Login failed', {
+        username,
+        ip: req.ip,
+        sessionId: req.sessionID,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       res.status(401).json({
         success: false,
         message: error instanceof Error ? error.message : 'Authentication failed',
@@ -415,6 +519,10 @@ app.post(
   '/api/auth/logout',
   asyncHandler(async (req: Request, res: Response) => {
     const sessionId = req.sessionID;
+    logger.info('Logout requested', {
+      sessionId,
+      userId: req.session.userId,
+    });
 
     // Remove service instance
     sessionServices.delete(sessionId);
@@ -422,7 +530,10 @@ app.post(
     // Clear session
     req.session.destroy((err) => {
       if (err) {
-        console.error('Error destroying session:', err);
+        logger.error('Error destroying session', {
+          error: err instanceof Error ? err.message : err,
+          sessionId,
+        });
       }
     });
 
@@ -722,10 +833,13 @@ app.get('*', (req: Request, res: Response) => {
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('=== ERROR ===');
-  console.error('Message:', err.message);
-  console.error('Stack:', err.stack);
-  console.error('=============');
+  logger.error('Unhandled error', {
+    message: err.message,
+    stack: err.stack,
+    path: req.originalUrl,
+    method: req.method,
+    sessionId: req.sessionID,
+  });
 
   res.status(500).json({
     success: false,
@@ -736,8 +850,10 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 app.listen(PORT, () => {
-console.log(`\n🚀 Book Rex Server`);
-  console.log(`   Server running at http://localhost:${PORT}`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health`);
-  console.log(`\n   Press Ctrl+C to stop\n`);
+  logger.info('🚀 Book Rex Server started', {
+    port: PORT,
+    nodeEnv: process.env.NODE_ENV || 'development',
+    healthEndpoint: `/api/health`,
+    logLevel: currentLogLevel,
+  });
 });

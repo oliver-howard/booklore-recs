@@ -1,7 +1,7 @@
 {
   "name": "book-rex",
-  "version": "1.0.0",
-  "description": "Book Rex – AI-powered book recommendations with BookLore/Goodreads integrations",
+  "version": "1.0.1",
+  "description": "BookRex – AI-powered book recommendations with BookLore/Goodreads integrations",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

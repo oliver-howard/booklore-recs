@@ -1,6 +1,6 @@
-# Book Rex
+# BookRex
 
-Book Rex is a self‑hosted web app that generates LLM-powered book recommendations using your own reading history. It supports BookLore credentials and Goodreads exports, stores everything locally in SQLite (`data/booklore.db`), and keeps your TBR list in sync across sessions.
+BookRex is a self‑hosted web app that generates LLM-powered book recommendations using your own reading history. It supports BookLore credentials and Goodreads exports, stores everything locally in SQLite (`data/booklore.db`), and keeps your TBR list in sync across sessions.
 
 ## Features
 
@@ -41,8 +41,14 @@ docker-compose up -d
 
 - **AI Providers**: configure `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY` plus `DEFAULT_AI_PROVIDER` in `.env`.
 - **Session Security**: set a unique `SESSION_SECRET`.
+- **Reverse Proxy Awareness**: configure `TRUST_PROXY` (accepts `true`, `false`, numbers, or IP/subnet strings) so Express trusts your ingress chain—set `true` when running behind Cloudflare/TrueNAS SCALE—and toggle `SESSION_SECURE_COOKIES` if you briefly need HTTP during testing.
 - **Data Source Toggle**: appears in Settings when you’ve connected BookLore and imported Goodreads.
 - **Admin Actions**: located at the bottom of Settings once logged in as an admin.
+
+### Diagnostics & Logging
+
+- Set `LOG_LEVEL=debug` (and optionally `DEBUG=true`) to enable detailed request/auth/session logs that help troubleshoot login issues on platforms like TrueNAS SCALE.
+- Logs are structured with timestamps and include session/user context (sanitized) plus request duration, so tailing container logs surfaces auth failures, missing credentials, or session destruction errors immediately.
 
 ## Cleaning / Upgrading
 

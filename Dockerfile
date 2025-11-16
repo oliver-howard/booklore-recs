@@ -10,10 +10,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
 # Production runtime (linux/amd64)
 FROM --platform=linux/amd64 node:20-bookworm-slim AS runner

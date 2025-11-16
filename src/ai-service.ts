@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading, TBRBook } from './types.js';
 import { config } from './config.js';
-import { getAmazonSearchUrl } from './utils.js';
+import { getAmazonAffiliateLink, getAmazonSearchUrl } from './utils.js';
 
 export class AIService {
   private provider: AIProvider;
@@ -191,7 +191,7 @@ export class AIService {
   private addAmazonLinks(recommendations: Recommendation[]): Recommendation[] {
     return recommendations.map((rec) => ({
       ...rec,
-      amazonUrl: getAmazonSearchUrl(rec.title, rec.author),
+      amazonUrl: getAmazonAffiliateLink(rec.title, rec.author),
     }));
   }
 
