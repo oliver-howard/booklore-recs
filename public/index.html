@@ -44,14 +44,48 @@
           <div id="login-error" class="error hidden"></div>
 
           <button type="submit" class="btn btn-primary btn-block">Login with BookLore</button>
-          <button type="button" class="btn btn-secondary btn-block" onclick="handleGuestLogin()">
-            Continue as Guest
+
+          <div class="divider">
+            <span>OR</span>
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-block" onclick="handleGuestLogin()" style="margin-bottom: 12px;">
+            Continue as Guest (No Reading History)
+          </button>
+
+          <button type="button" class="btn btn-secondary btn-block" onclick="showGoodreadsUpload()">
+            Upload Goodreads CSV
           </button>
         </form>
 
+        <!-- Goodreads CSV Upload Section (hidden by default) -->
+        <div id="goodreads-upload-section" class="hidden" style="margin-top: 20px;">
+          <h3 style="margin-bottom: 12px;">Upload Goodreads Library Export</h3>
+          <p class="modal-note" style="margin-bottom: 12px;">
+            Export your Goodreads library from
+            <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>
+            and upload it here for personalized recommendations.
+          </p>
+
+          <div class="form-group">
+            <input type="file" id="csv-file-input" accept=".csv" />
+          </div>
+
+          <div id="csv-upload-error" class="error hidden"></div>
+          <div id="csv-upload-success" class="success hidden"></div>
+
+          <button type="button" class="btn btn-primary btn-block" onclick="handleCSVUpload()">
+            Upload and Continue
+          </button>
+          <button type="button" class="btn btn-secondary btn-block" onclick="hideGoodreadsUpload()">
+            Back to Login
+          </button>
+        </div>
+
         <p class="modal-note">
-          <strong>BookLore Account:</strong> Get personalized recommendations based on your reading history.<br>
-          <strong>Guest Mode:</strong> Use only custom recommendations without BookLore integration.
+          <strong>BookLore Account:</strong> Full personalized recommendations based on your reading history.<br>
+          <strong>Goodreads CSV:</strong> Upload your Goodreads library for personalized recommendations.<br>
+          <strong>Guest Mode:</strong> Use custom recommendations without any reading history.
         </p>
       </div>
     </div>

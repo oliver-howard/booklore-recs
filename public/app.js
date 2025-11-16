@@ -4,6 +4,7 @@ const API_BASE = '/api';
 // Track authentication state
 let isAuthenticated = false;
 let isGuestMode = false;
+let hasReadingHistory = false;
 
 // Check authentication status
 async function checkAuthStatus() {
@@ -14,12 +15,23 @@ async function checkAuthStatus() {
     if (data.authenticated) {
       isAuthenticated = true;
       isGuestMode = data.isGuest || false;
+      hasReadingHistory = data.hasReadingHistory || false;
       hideLoginModal();
-      showUserInfo(data.username);
+
+      // Update username display based on whether they have CSV data
+      if (isGuestMode && hasReadingHistory) {
+        showUserInfo(`Guest (${data.booksCount} books from Goodreads)`);
+      } else if (isGuestMode) {
+        showUserInfo('Guest (No Reading History)');
+      } else {
+        showUserInfo(data.username);
+      }
+
       updateUIForMode();
     } else {
       isAuthenticated = false;
       isGuestMode = false;
+      hasReadingHistory = false;
       showLoginModal();
     }
   } catch (error) {
@@ -30,29 +42,55 @@ async function checkAuthStatus() {
 
 // Update UI based on guest mode or full auth
 function updateUIForMode() {
-  const guestRestrictedTabs = ['similar', 'contrasting', 'blindspots', 'tbr', 'stats'];
+  // Tabs that require reading history (BookLore or CSV)
+  const historyRequiredTabs = ['similar', 'contrasting', 'blindspots', 'stats'];
+  // TBR is only available for BookLore users (requires persistent storage)
+  const bookloreOnlyTabs = ['tbr'];
 
-  guestRestrictedTabs.forEach(tab => {
+  historyRequiredTabs.forEach(tab => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
     if (button) {
-      if (isGuestMode) {
-        button.disabled = true;
-        button.title = 'Login with BookLore to access this feature';
-        button.style.opacity = '0.5';
-        button.style.cursor = 'not-allowed';
-      } else {
+      // Enable if user has reading history (either BookLore or CSV)
+      if (hasReadingHistory) {
         button.disabled = false;
         button.title = '';
         button.style.opacity = '1';
         button.style.cursor = 'pointer';
+      } else {
+        button.disabled = true;
+        button.title = 'Upload Goodreads CSV or login with BookLore to access this feature';
+        button.style.opacity = '0.5';
+        button.style.cursor = 'not-allowed';
       }
     }
   });
 
-  // If guest mode and on a restricted tab, switch to custom tab
-  if (isGuestMode) {
-    const activeTab = document.querySelector('.tab-button.active');
-    if (activeTab && guestRestrictedTabs.includes(activeTab.dataset.tab)) {
+  bookloreOnlyTabs.forEach(tab => {
+    const button = document.querySelector(`[data-tab="${tab}"]`);
+    if (button) {
+      // Only enable for BookLore users (not guest mode)
+      if (!isGuestMode) {
+        button.disabled = false;
+        button.title = '';
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+      } else {
+        button.disabled = true;
+        button.title = 'Login with BookLore to access this feature';
+        button.style.opacity = '0.5';
+        button.style.cursor = 'not-allowed';
+      }
+    }
+  });
+
+  // If on a restricted tab without proper access, switch to custom tab
+  const activeTab = document.querySelector('.tab-button.active');
+  if (activeTab) {
+    const tabName = activeTab.dataset.tab;
+    const needsHistory = historyRequiredTabs.includes(tabName);
+    const needsBooklore = bookloreOnlyTabs.includes(tabName);
+
+    if ((needsHistory && !hasReadingHistory) || (needsBooklore && isGuestMode)) {
       switchTab('custom');
     }
   }
@@ -115,10 +153,100 @@ async function handleGuestLogin() {
     isAuthenticated = true;
     isGuestMode = true;
 
-    showUserInfo('Guest (Limited Features)');
+    showUserInfo('Guest (No Reading History)');
     hideLoginModal();
     updateUIForMode();
     showLoading(false);
+  } catch (error) {
+    showLoading(false);
+    errorDiv.textContent = error.message;
+    errorDiv.classList.remove('hidden');
+  }
+}
+
+// Show Goodreads CSV upload section
+function showGoodreadsUpload() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('goodreads-upload-section').classList.remove('hidden');
+}
+
+// Hide Goodreads CSV upload section
+function hideGoodreadsUpload() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('goodreads-upload-section').classList.add('hidden');
+  document.getElementById('csv-upload-error').classList.add('hidden');
+  document.getElementById('csv-upload-success').classList.add('hidden');
+  document.getElementById('csv-file-input').value = '';
+}
+
+// Handle CSV file upload
+async function handleCSVUpload() {
+  const fileInput = document.getElementById('csv-file-input');
+  const errorDiv = document.getElementById('csv-upload-error');
+  const successDiv = document.getElementById('csv-upload-success');
+
+  errorDiv.classList.add('hidden');
+  successDiv.classList.add('hidden');
+
+  if (!fileInput.files || fileInput.files.length === 0) {
+    errorDiv.textContent = 'Please select a CSV file';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
+  const file = fileInput.files[0];
+
+  if (!file.name.endsWith('.csv')) {
+    errorDiv.textContent = 'Please select a valid CSV file';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    showLoading(true);
+
+    // Read the file content
+    const csvContent = await file.text();
+
+    // First, create a guest session
+    const guestResponse = await fetch(`${API_BASE}/auth/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!guestResponse.ok) {
+      throw new Error('Failed to create guest session');
+    }
+
+    // Then upload the CSV
+    const uploadResponse = await fetch(`${API_BASE}/auth/guest/upload-csv`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csvContent }),
+    });
+
+    const data = await uploadResponse.json();
+
+    if (!uploadResponse.ok) {
+      throw new Error(data.message || 'Failed to upload CSV');
+    }
+
+    // Success!
+    isAuthenticated = true;
+    isGuestMode = true;
+    hasReadingHistory = true; // CSV data uploaded
+
+    successDiv.textContent = data.message;
+    successDiv.classList.remove('hidden');
+
+    // Wait a moment to show success message, then close modal
+    setTimeout(() => {
+      showUserInfo(`Guest (${data.booksCount} books from Goodreads)`);
+      hideLoginModal();
+      hideGoodreadsUpload();
+      updateUIForMode();
+      showLoading(false);
+    }, 1500);
   } catch (error) {
     showLoading(false);
     errorDiv.textContent = error.message;
@@ -162,6 +290,7 @@ async function handleLogin(event) {
     // Login successful
     isAuthenticated = true;
     isGuestMode = false;
+    hasReadingHistory = true; // BookLore users always have reading history
 
     // Save or clear username based on "Remember Me" checkbox
     if (rememberMe) {
@@ -191,6 +320,7 @@ async function handleLogout() {
 
     isAuthenticated = false;
     isGuestMode = false;
+    hasReadingHistory = false;
     hideUserInfo();
     showLoginModal();
 

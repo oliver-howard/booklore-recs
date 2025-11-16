@@ -5,8 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { RecommendationService } from './recommendation-service.js';
 import { validateConfig } from './config.js';
-import { Recommendation, ReadingAnalysis, TBRBook } from './types.js';
+import { Recommendation, ReadingAnalysis, TBRBook, UserReading } from './types.js';
 import { UserDataService } from './user-data-service.js';
+import { GoodreadsParser } from './goodreads-parser.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,7 @@ declare module 'express-session' {
     bookloreUsername?: string;
     booklorePassword?: string;
     isGuest?: boolean;
+    guestReadings?: UserReading[]; // Parsed CSV data for guest users
   }
 }
 
@@ -76,10 +78,12 @@ async function getService(req: Request): Promise<RecommendationService> {
     console.log('Creating new service instance for session:', sessionId.substring(0, 8) + '...');
 
     // Create service with user-specific credentials (or undefined for guest)
+    // Pass guest readings if available
     service = new RecommendationService(
       undefined, // AI config (use defaults)
       req.session.bookloreUsername,
-      req.session.booklorePassword
+      req.session.booklorePassword,
+      req.session.guestReadings // CSV data for guest mode
     );
 
     // Only initialize (authenticate with BookLore) if not a guest
@@ -87,7 +91,8 @@ async function getService(req: Request): Promise<RecommendationService> {
       await service.initialize();
       console.log('Service initialized successfully for user:', req.session.bookloreUsername);
     } else {
-      console.log('Service created for guest session (no BookLore authentication)');
+      const readingsCount = req.session.guestReadings?.length || 0;
+      console.log(`Service created for guest session (${readingsCount} books from CSV)`);
     }
 
     sessionServices.set(sessionId, service);
@@ -114,16 +119,20 @@ app.get(
   '/api/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
     if (req.session.initialized && req.session.isGuest) {
+      const hasCSVData = req.session.guestReadings && req.session.guestReadings.length > 0;
       res.json({
         authenticated: true,
         isGuest: true,
         username: 'Guest',
+        hasReadingHistory: hasCSVData,
+        booksCount: hasCSVData ? req.session.guestReadings!.length : 0,
       });
     } else if (req.session.initialized && req.session.bookloreUsername) {
       res.json({
         authenticated: true,
         isGuest: false,
         username: req.session.bookloreUsername,
+        hasReadingHistory: true,
       });
     } else {
       res.json({ authenticated: false });
@@ -190,6 +199,59 @@ app.post(
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : 'Failed to create guest session',
+      });
+    }
+  })
+);
+
+// Upload Goodreads CSV for guest mode
+app.post(
+  '/api/auth/guest/upload-csv',
+  asyncHandler(async (req: Request, res: Response) => {
+    // Verify this is a guest session
+    if (!req.session.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: 'CSV upload is only available for guest mode',
+      });
+    }
+
+    const { csvContent } = req.body;
+
+    if (!csvContent || typeof csvContent !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'CSV content is required',
+      });
+    }
+
+    try {
+      // Parse the CSV content
+      const readings = GoodreadsParser.parseCSV(csvContent);
+
+      if (readings.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No read books found in CSV file. Make sure you have books marked as "read" in Goodreads.',
+        });
+      }
+
+      // Store in session
+      req.session.guestReadings = readings;
+
+      // Clear any existing service instance to force re-initialization with new data
+      sessionServices.delete(req.sessionID);
+
+      res.json({
+        success: true,
+        message: `Successfully imported ${readings.length} books from Goodreads`,
+        booksCount: readings.length,
+      });
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to parse CSV file',
       });
     }
   })

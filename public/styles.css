@@ -695,3 +695,71 @@ header h1 {
     font-size: 1.25rem;
   }
 }
+
+/* Divider for OR separator */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+/* Success message styling */
+.success {
+  background: var(--clr-success-a0);
+  border: 1px solid var(--clr-success-a10);
+  color: var(--clr-success-a20);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+/* File input styling */
+input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+input[type="file"]:hover {
+  border-color: var(--clr-accent-a20);
+  background: var(--card-bg);
+}
+
+input[type="file"]::file-selector-button {
+  padding: 8px 16px;
+  margin-right: 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--clr-accent-a20);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: var(--clr-accent-a30);
+  transform: translateY(-1px);
+}
