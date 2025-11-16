@@ -182,7 +182,7 @@
             <textarea
               id="custom-criteria"
               rows="3"
-              placeholder="e.g., science fiction with strong female protagonists, or books about climate change with hopeful endings"
+              placeholder="e.g., science fiction with strong female protagonists, or books with the same vibe as 'Project Hail Mary'"
             ></textarea>
           </div>
           <button class="btn btn-primary" onclick="getCustomRecommendations()">
@@ -217,6 +217,34 @@
             <h2>Settings</h2>
             <p>Configure your data sources</p>
           </div>
+          
+          <!-- Goodreads CSV Upload -->
+          <div class="settings-section">
+            <h3>Goodreads Import</h3>
+            <p class="settings-description">
+              Upload your Goodreads library export to use your reading history for recommendations.
+              Export from <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>.
+            </p>
+            <div id="goodreads-status" class="status-indicator">
+              <span id="goodreads-status-text">No data uploaded</span>
+            </div>
+
+            <div class="form-group">
+              <input type="file" id="settings-csv-input" accept=".csv" />
+            </div>
+            <div id="settings-csv-error" class="error hidden"></div>
+            <div id="settings-csv-success" class="success hidden"></div>
+            <div class="settings-buttons">
+              <button type="button" class="btn btn-primary" onclick="uploadGoodreadsCSV()">
+                Upload CSV
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
+                Remove Data
+              </button>
+            </div>
+          </div>
+          
+          <br>  
 
           <!-- BookLore Integration -->
           <div class="settings-section">
@@ -256,31 +284,6 @@
             </form>
           </div>
 
-          <!-- Goodreads CSV Upload -->
-          <div class="settings-section">
-            <h3>Goodreads Import</h3>
-            <p class="settings-description">
-              Upload your Goodreads library export to use your reading history for recommendations.
-              Export from <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>.
-            </p>
-            <div id="goodreads-status" class="status-indicator">
-              <span id="goodreads-status-text">No data uploaded</span>
-            </div>
-
-            <div class="form-group">
-              <input type="file" id="settings-csv-input" accept=".csv" />
-            </div>
-            <div id="settings-csv-error" class="error hidden"></div>
-            <div id="settings-csv-success" class="success hidden"></div>
-            <div class="settings-buttons">
-              <button type="button" class="btn btn-primary" onclick="uploadGoodreadsCSV()">
-                Upload CSV
-              </button>
-              <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
-                Remove Data
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

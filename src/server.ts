@@ -387,9 +387,11 @@ app.post(
   asyncHandler(async (req: Request, res: Response) => {
     const service = await getService(req);
     const { maxRecommendations } = req.body;
+    const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
     const recommendations = await service.getRecommendations(
       'similar',
-      maxRecommendations
+      maxRecommendations,
+      tbrBooks
     );
     res.json({ recommendations });
   })
@@ -401,9 +403,11 @@ app.post(
   asyncHandler(async (req: Request, res: Response) => {
     const service = await getService(req);
     const { maxRecommendations } = req.body;
+    const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
     const recommendations = await service.getRecommendations(
       'contrasting',
-      maxRecommendations
+      maxRecommendations,
+      tbrBooks
     );
     res.json({ recommendations });
   })
@@ -433,9 +437,11 @@ app.post(
       });
     }
 
+    const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
     const recommendations = await service.getCustomRecommendations(
       criteria,
-      maxRecommendations
+      maxRecommendations,
+      tbrBooks
     );
     res.json({ recommendations });
   })

@@ -8,6 +8,22 @@ let hasBookLore = false;
 let hasGoodreads = false;
 let notificationTimeout;
 let tbrCache = [];
+
+function generateClientBookId(title = '', author = '') {
+  const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return normalized;
+}
+
+function isInTBR(rec) {
+  if (!tbrCache || tbrCache.length === 0) {
+    return false;
+  }
+  const id = generateClientBookId(rec.title || '', rec.author || 'Unknown');
+  return tbrCache.some((book) => book.id === id);
+}
 let authMode = 'login';
 
 function clearAppState() {
@@ -657,8 +673,16 @@ function displayRecommendations(recommendations, elementId) {
     return;
   }
 
+  const filtered = recommendations.filter((rec) => !isInTBR(rec));
+
+  if (filtered.length === 0) {
+    resultsElement.innerHTML =
+      '<p class="no-results">All recommended books are already in your TBR list.</p>';
+    return;
+  }
+
   let html = '<ol class="recommendations-list">';
-  recommendations.forEach((rec, index) => {
+  filtered.forEach((rec, index) => {
     html += renderRecommendationMarkup(rec, index);
   });
   html += '</ol>';

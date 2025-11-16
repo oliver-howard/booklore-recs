@@ -1,6 +1,6 @@
 import { BookLoreClient } from './booklore-client.js';
 import { AIService } from './ai-service.js';
-import { Recommendation, ReadingAnalysis, RecommendationType, AIConfig, UserReading } from './types.js';
+import { Recommendation, ReadingAnalysis, RecommendationType, AIConfig, UserReading, TBRBook } from './types.js';
 import { config } from './config.js';
 
 export class RecommendationService {
@@ -40,7 +40,8 @@ export class RecommendationService {
    */
   async getRecommendations(
     type: RecommendationType = 'similar',
-    maxRecommendations?: number
+    maxRecommendations?: number,
+    tbrBooks?: TBRBook[]
   ): Promise<Recommendation[] | ReadingAnalysis> {
     const max = maxRecommendations || config.ai.maxRecommendations;
     let readings: UserReading[];
@@ -65,9 +66,9 @@ export class RecommendationService {
 
     switch (type) {
       case 'similar':
-        return this.aiService.getSimilarRecommendations(readings, max);
+        return this.aiService.getSimilarRecommendations(readings, tbrBooks, max);
       case 'contrasting':
-        return this.aiService.getContrastingRecommendations(readings, max);
+        return this.aiService.getContrastingRecommendations(readings, tbrBooks, max);
       case 'blindspots':
         return this.aiService.analyzeReadingBlindSpots(readings);
       default:
@@ -80,20 +81,21 @@ export class RecommendationService {
    */
   async getCustomRecommendations(
     criteria: string,
-    maxRecommendations?: number
+    maxRecommendations?: number,
+    tbrBooks?: TBRBook[]
   ): Promise<Recommendation[]> {
     const max = maxRecommendations || config.ai.maxRecommendations;
 
     // If guest mode with CSV data, use personalized recommendations
     if (this.isGuestMode && this.guestReadings && this.guestReadings.length > 0) {
       console.log(`\nGuest mode with CSV: Analyzing ${this.guestReadings.length} books from Goodreads...\n`);
-      return this.aiService.getPersonalizedRecommendations(this.guestReadings, criteria, max);
+      return this.aiService.getPersonalizedRecommendations(this.guestReadings, criteria, tbrBooks, max);
     }
 
     // If guest mode without CSV data, use generic recommendations
     if (this.isGuestMode) {
       console.log('\nGuest mode: Generating recommendations based on criteria only...\n');
-      return this.aiService.getGenericRecommendations(criteria, max);
+      return this.aiService.getGenericRecommendations(criteria, tbrBooks, max);
     }
 
     const readings = await this.bookloreClient!.getUserReadingHistory();
@@ -104,7 +106,7 @@ export class RecommendationService {
 
     console.log(`\nAnalyzing ${readings.length} books from your reading history...\n`);
 
-    return this.aiService.getPersonalizedRecommendations(readings, criteria, max);
+    return this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max);
   }
 
   /**

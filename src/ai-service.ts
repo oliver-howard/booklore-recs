@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading } from './types.js';
+import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading, TBRBook } from './types.js';
 import { config } from './config.js';
 import { getAmazonSearchUrl } from './utils.js';
 
@@ -195,11 +195,22 @@ export class AIService {
     }));
   }
 
+  private formatTBRList(tbrBooks?: TBRBook[]): string {
+    if (!tbrBooks || tbrBooks.length === 0) {
+      return 'They currently have no books in their TBR list.';
+    }
+
+    return tbrBooks
+      .map((book) => `- "${book.title}" by ${book.author || 'Unknown'}`)
+      .join('\n');
+  }
+
   /**
    * Get similar book recommendations
    */
   async getSimilarRecommendations(
     userReadings: UserReading[],
+    tbrBooks: TBRBook[] = [],
     maxRecommendations = 5
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert. Based on the user's reading history with their ratings, notes, and reviews, suggest similar books that they might enjoy. Consider the themes, writing style, genres, and subject matter. Pay special attention to highly-rated books, user notes (which reveal what they liked/disliked), and reviews.
@@ -217,9 +228,10 @@ Important:
 - Return ONLY the JSON array, no additional text
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Provide exactly ${maxRecommendations} recommendations
-- Do not recommend books already in the user's reading history`;
+- Do not recommend books already in the user's reading history or currently on their TBR list`;
 
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}`;
+    const tbrSection = this.formatTBRList(tbrBooks);
+    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
@@ -231,6 +243,7 @@ Important:
    */
   async getContrastingRecommendations(
     userReadings: UserReading[],
+    tbrBooks: TBRBook[] = [],
     maxRecommendations = 5
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert specializing in diverse perspectives. Based on the user's reading history with their ratings, notes, and reviews, suggest books that present contrasting perspectives, challenge their current assumptions, or offer opposing ideologies and viewpoints. Pay attention to their notes and reviews to understand their current worldview.
@@ -250,10 +263,11 @@ Important:
 - Return ONLY the JSON array, no additional text
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Provide exactly ${maxRecommendations} recommendations
-- Do not recommend books already in the user's reading history
+- Do not recommend books already in the user's reading history or currently in their TBR list
 - Focus on intellectual opposition and alternative frameworks`;
 
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}`;
+    const tbrSection = this.formatTBRList(tbrBooks);
+    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
@@ -314,6 +328,7 @@ Important:
   async getPersonalizedRecommendations(
     userReadings: UserReading[],
     criteria: string,
+    tbrBooks: TBRBook[] = [],
     maxRecommendations = 5
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert. Based on the user's reading history with their ratings, notes, and reviews, and the specific criteria they've provided, suggest books that match their request. Pay attention to their notes and reviews to understand their preferences.
@@ -331,9 +346,10 @@ Important:
 - Return ONLY the JSON array, no additional text
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Provide exactly ${maxRecommendations} recommendations
-- Do not recommend books already in the user's reading history`;
+- Do not recommend books already in the user's reading history or on their TBR list`;
 
-    const userMessage = `User's criteria: ${criteria}\n\nReading history:\n\n${this.formatReadingHistory(userReadings)}`;
+    const tbrSection = this.formatTBRList(tbrBooks);
+    const userMessage = `User's criteria: ${criteria}\n\nReading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
@@ -345,6 +361,7 @@ Important:
    */
   async getGenericRecommendations(
     criteria: string,
+    tbrBooks: TBRBook[] = [],
     maxRecommendations = 5
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert. Based on the specific criteria provided, suggest the best books that match the request. Focus on highly acclaimed, well-known, and widely recommended books in the relevant category.
@@ -362,9 +379,11 @@ Important:
 - Return ONLY the JSON array, no additional text
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Provide exactly ${maxRecommendations} recommendations
-- Focus on highly-rated, popular, and critically acclaimed books`;
+- Focus on highly-rated, popular, and critically acclaimed books
+- Do not recommend books already on their TBR list`;
 
-    const userMessage = `User's criteria: ${criteria}`;
+    const tbrSection = this.formatTBRList(tbrBooks);
+    const userMessage = `User's criteria: ${criteria}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
