@@ -251,6 +251,11 @@ function showStats() {
   getStats();
 }
 
+function goToSimilarRecommendations() {
+  switchTab('similar');
+  getSimilarRecommendations();
+}
+
 async function saveBookLoreCredentials(event) {
   event.preventDefault();
 
