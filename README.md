@@ -42,11 +42,6 @@ docker compose up -d                    # or docker compose up --build -d
 - **Data Source Toggle**: appears in Settings when you’ve connected BookLore and imported Goodreads.
 - **Admin Actions**: located at the bottom of Settings once logged in as an admin.
 
-### Diagnostics & Logging
-
-- Set `LOG_LEVEL=debug` (and optionally `DEBUG=true`) to enable detailed request/auth/session logs that help troubleshoot login issues on platforms like TrueNAS SCALE.
-- Logs are structured with timestamps and include session/user context (sanitized) plus request duration, so tailing container logs surfaces auth failures, missing credentials, or session destruction errors immediately.
-
 ## Cleaning / Upgrading
 
 - To upgrade, pull the latest code (`git pull`), keep your existing `.env` and `data/`, then run `npm install` if dependencies changed.
