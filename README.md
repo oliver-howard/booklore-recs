@@ -21,9 +21,6 @@ npm run dev                    # hot reload at http://localhost:3000
 # production: npm run build && npm start
 ```
 
-- Visit `http://localhost:3000`, register the first account (auto-admin), then connect BookLore or upload Goodreads data.
-- The `data/` directory is ignored in git and created automatically; your local DB persists across restarts. Delete `data/` to start fresh.
-
 ### Docker
 
 ```bash
