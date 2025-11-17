@@ -20,7 +20,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: oliver-howard
           password: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       - name: Set up Docker Buildx
