@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.3.0...book-rex-v1.4.0) (2025-11-17)
+
+
+### Features
+
+* **ui:** update hero text ([0327713](https://github.com/oliver-howard/book-rex/commit/0327713fa73821858d0be2c2983c0444f6e9495e))
+
 ## [1.3.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.2.0...book-rex-v1.3.0) (2025-11-17)
 
 
