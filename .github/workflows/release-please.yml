@@ -17,6 +17,6 @@ jobs:
         id: release
         with:
           # uses built-in GITHUB_TOKEN for now
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
