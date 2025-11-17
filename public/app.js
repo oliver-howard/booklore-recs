@@ -194,6 +194,28 @@ function updateSettingsUI(data) {
   }
 }
 
+// Display app version in settings
+async function loadAppVersion() {
+  const versionEl = document.getElementById('app-version');
+  if (!versionEl) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/version`);
+    if (!response.ok) {
+      throw new Error(`Failed with status ${response.status}`);
+    }
+    const data = await response.json();
+    const versionLabel = data.version ? `v${data.version}` : '';
+    const name = 'BookRex';
+    versionEl.textContent = versionLabel ? `${name} ${versionLabel}` : name;
+  } catch (error) {
+    console.error('Error loading app version:', error);
+    versionEl.textContent = 'Version unavailable';
+  }
+}
+
 // Show/hide login modal
 function showLoginModal() {
   setAuthMode('login');
@@ -1235,6 +1257,7 @@ function initTheme() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   checkAuthStatus();
+  loadAppVersion();
 
   // Tab switching
   document.querySelectorAll('.tab-button').forEach(button => {
