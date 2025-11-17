@@ -1,0 +1,28 @@
+# Changelog
+
+## [1.1.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.0.2...book-rex-v1.1.0) (2025-11-17)
+
+
+### Features
+
+* 'View on Amazon' links ([c29e4eb](https://github.com/oliver-howard/book-rex/commit/c29e4ebd95cf6c1e610aedfbaee241bb8b8f5cb1))
+* add admin user ([2e7f5aa](https://github.com/oliver-howard/book-rex/commit/2e7f5aa2d0e2e1032fd66be4ff2506e07ea03fc3))
+* add Amazon affiliate link support ([1589e80](https://github.com/oliver-howard/book-rex/commit/1589e80cb0f485075785b3ca657ae9fff03c5a60))
+* add data source toggle ([2020b39](https://github.com/oliver-howard/book-rex/commit/2020b393565f338882db81908312892333d19fe2))
+* add Goodreads support as data source ([3ce636e](https://github.com/oliver-howard/book-rex/commit/3ce636e3fa51b57afefc4b0a261c72816d13e31b))
+* add light/dark theme ([cb90dba](https://github.com/oliver-howard/book-rex/commit/cb90dba1ce2a5b17d0c42fd281aa5353f998462c))
+* add login/authentication for BookLore within UI ([4c31924](https://github.com/oliver-howard/book-rex/commit/4c31924953e34c74d6d0d480b747ec0ae36acad5))
+* add SQLite DB to track users, data sources, and TBR ([343d3cf](https://github.com/oliver-howard/book-rex/commit/343d3cfd3970c0bb3fdc822c9fe5c48aa27ef406))
+* add support for AMD/Linux hosting ([eda6b07](https://github.com/oliver-howard/book-rex/commit/eda6b07c105d94e7023d8bb0687775d800c6e024))
+* add tbr shelf and guest mode ([bae2076](https://github.com/oliver-howard/book-rex/commit/bae20761df3fd3afda235150488513a02152916e))
+* add web interface and containerized deployment ([a0758a4](https://github.com/oliver-howard/book-rex/commit/a0758a417413614ab437fca1d3ff640d51b6b468))
+* remember username toggle ([bef5439](https://github.com/oliver-howard/book-rex/commit/bef543904322babad0a0f122554d19e1e6546c81))
+* UI polish ([b2fa0f3](https://github.com/oliver-howard/book-rex/commit/b2fa0f3a3e006307c57f54a10f42988f4b067cdc))
+* UI rebrand to Book Rex ([5801c7c](https://github.com/oliver-howard/book-rex/commit/5801c7c81de8dc40e5d830a21c5fea4ffc9d64c2))
+* update login screen ([f7ea9c8](https://github.com/oliver-howard/book-rex/commit/f7ea9c8aea5ee199986c742494b07085a0423c4d))
+
+
+### Bug Fixes
+
+* 'Get my next book' button ([ec3eb0e](https://github.com/oliver-howard/book-rex/commit/ec3eb0e8c3b306b31717fb27f4c3d640d13c7047))
+* recommendation duplicates already on TBR ([d8fb59e](https://github.com/oliver-howard/book-rex/commit/d8fb59e892fec727158e5fb15f1e2117fbc51e90))
