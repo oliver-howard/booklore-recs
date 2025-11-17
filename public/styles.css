@@ -776,6 +776,16 @@ body {
   margin-top: 12px;
 }
 
+.settings-version {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  letter-spacing: 0.02em;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;

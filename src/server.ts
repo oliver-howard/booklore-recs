@@ -3,6 +3,7 @@ import cors from 'cors';
 import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { RecommendationService } from './recommendation-service.js';
 import { validateConfig } from './config.js';
 import { Recommendation, ReadingAnalysis, TBRBook, UserReading, DataSourcePreference } from './types.js';
@@ -12,6 +13,10 @@ import { logger, requestLogger, currentLogLevel } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json') as { version?: string; name?: string };
+const APP_VERSION = packageJson.version || '0.0.0';
+const APP_NAME = packageJson.name || 'BookRex';
 
 // Validate configuration on startup (but make BookLore credentials optional for web mode)
 try {
@@ -178,6 +183,11 @@ const asyncHandler =
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// App version
+app.get('/api/version', (_req: Request, res: Response) => {
+  res.json({ version: APP_VERSION, name: APP_NAME });
 });
 
 // Authentication check
