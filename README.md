@@ -47,4 +47,4 @@ docker compose up -d                    # or docker compose up --build -d
 - To upgrade, pull the latest code (`git pull`), keep your existing `.env` and `data/`, then run `npm install` if dependencies changed.
 - To reset everything, stop the app, delete `data/`, and restart—Book Rex will recreate a fresh database and treat the next account as admin.
 
-Enjoy your reading journey! 📚✨
+Enjoy your reading journey!
