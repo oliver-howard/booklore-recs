@@ -36,14 +36,10 @@ docker compose up -d                    # or docker compose up --build -d
 - The compose file mounts `./data:/usr/src/app/data`, so container restarts keep your DB.
 - To pin versions, set `image: ghcr.io/oliver-howard/book-rex:vX.Y.Z` in `docker-compose.yml` or tag your own build with `docker buildx build --platform linux/amd64 -t <registry>/book-rex:<tag> .`.
 
-### AMD/Linux Compatibility
-
-- Docker builds are pinned to the `linux/amd64` platform in both the `Dockerfile` and `docker-compose.yml`, ensuring images you create on Apple Silicon or other hosts run on AMD-based Linux servers.
-- The `linux-amd-build` GitHub Action (see `.github/workflows/linux-amd-build.yml`) runs `npm ci`, `npm run build`, and builds the Docker image for `linux/amd64` on every push/PR so regressions are caught early.
-
 ## Configuration Notes
 
 - **AI Providers**: configure `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY` plus `DEFAULT_AI_PROVIDER` in `.env`.
+- **BookLore API URL**: configure 'BOOKLORE_API_URL`
 - **Session Security**: set a unique `SESSION_SECRET`.
 - **Reverse Proxy Awareness**: configure `TRUST_PROXY` (accepts `true`, `false`, numbers, or IP/subnet strings) so Express trusts your ingress chain—set `true` when running behind Cloudflare/TrueNAS SCALE—and toggle `SESSION_SECURE_COOKIES` if you briefly need HTTP during testing.
 - **Data Source Toggle**: appears in Settings when you’ve connected BookLore and imported Goodreads.
