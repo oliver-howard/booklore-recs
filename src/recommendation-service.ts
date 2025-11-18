@@ -93,47 +93,58 @@ export class RecommendationService {
   /**
    * Get user statistics
    */
+  /**
+   * Get user statistics
+   */
   async getUserStats() {
     const source = this.determineDataSource();
+    console.log(`Generating stats using source: ${source}`);
     const readings = await this.getReadingsForSource(source);
-    let genres: string[] = [];
-    let authors: string[] = [];
+    
+    // Calculate counts for all sources
+    const genreCount = new Map<string, number>();
+    const authorCount = new Map<string, number>();
+    
+    let booksWithGenres = 0;
 
-    if (source === 'goodreads') {
-      const genreCount = new Map<string, number>();
-      readings.forEach((reading) => {
-        reading.book.genres?.forEach((genre) => {
+    readings.forEach((reading) => {
+      // Count genres
+      if (reading.book.genres && reading.book.genres.length > 0) {
+        booksWithGenres++;
+        reading.book.genres.forEach((genre) => {
           genreCount.set(genre, (genreCount.get(genre) || 0) + 1);
         });
-      });
-      genres = Array.from(genreCount.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([genre]) => genre);
+      }
 
-      const authorCount = new Map<string, number>();
-      readings.forEach((reading) => {
+      // Count authors
+      if (reading.book.author) {
         const author = reading.book.author;
-        if (author) {
-          authorCount.set(author, (authorCount.get(author) || 0) + 1);
-        }
-      });
-      authors = Array.from(authorCount.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([author]) => author);
-    } else {
-      genres = await this.bookloreClient!.getUserFavoriteGenres();
-      authors = await this.bookloreClient!.getUserFavoriteAuthors();
-    }
+        authorCount.set(author, (authorCount.get(author) || 0) + 1);
+      }
+    });
+
+    console.log(`Stats: ${readings.length} readings, ${booksWithGenres} have genres.`);
+
+    const topGenres = Array.from(genreCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    const topAuthors = Array.from(authorCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
 
     const ratedBooks = readings.filter((r) => r.rating);
 
     return {
+      source,
       totalBooksRead: readings.length,
       booksRated: ratedBooks.length,
       averageRating:
         ratedBooks.reduce((sum, r) => sum + (r.rating || 0), 0) / ratedBooks.length || 0,
-      topGenres: genres.slice(0, 5),
-      topAuthors: authors.slice(0, 5),
+      topGenres,
+      topAuthors,
     };
   }
 
