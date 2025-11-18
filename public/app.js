@@ -83,7 +83,11 @@ async function checkAuthStatus() {
       canToggleDataSource = !!data.canChooseDataSource;
       hideLoginModal();
 
-      showUserInfo(data.username);
+      try {
+        showUserInfo(data.username);
+      } catch (e) {
+        console.error('Error showing user info:', e);
+      }
       
       try {
         // Page-specific initialization
@@ -114,6 +118,7 @@ async function checkAuthStatus() {
         }
       } catch (uiError) {
         console.error('Error updating UI after auth:', uiError);
+        // Do NOT show login modal here, as we are authenticated
       }
     } else {
       isAuthenticated = false;
@@ -124,11 +129,15 @@ async function checkAuthStatus() {
       dataSourcePreference = 'auto';
       canToggleDataSource = false;
       clearAppState();
+      // Only show login modal if we are NOT authenticated
       showLoginModal();
     }
   } catch (error) {
     console.error('Error checking auth status:', error);
-    showLoginModal();
+    // Only show login modal on network/server errors if we weren't already authenticated
+    if (!isAuthenticated) {
+      showLoginModal();
+    }
   }
 }
 
