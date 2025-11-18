@@ -63,10 +63,7 @@ if (trustProxySetting !== undefined) {
 // Middleware
 app.use(cors());
 app.use(express.json());
-const secureCookies =
-  process.env.SESSION_SECURE_COOKIES !== undefined
-    ? process.env.SESSION_SECURE_COOKIES === 'true'
-    : process.env.NODE_ENV === 'production';
+const secureCookies = process.env.SESSION_SECURE_COOKIES === 'true';
 const sessionConfig: session.SessionOptions = {
   secret: process.env.SESSION_SECRET || 'booklore-secret-change-in-production',
   resave: false,
@@ -211,6 +208,7 @@ app.get(
     if (req.session.userId) {
       const user = DatabaseService.getUserById(req.session.userId);
       if (user) {
+        logger.debug('Auth status check: Authenticated', { username: user.username, userId: user.id });
         const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
         const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
         const hasReadingHistory = hasBookLore || hasGoodreads;
@@ -227,7 +225,11 @@ app.get(
           isAdmin: user.isAdmin,
         });
         return;
+      } else {
+        logger.warn('Auth status check: User not found in DB', { userId: req.session.userId });
       }
+    } else {
+      logger.debug('Auth status check: No session userId');
     }
     res.json({ authenticated: false });
   })
