@@ -96,7 +96,7 @@ export class RecommendationService {
   /**
    * Get user statistics
    */
-  async getUserStats() {
+  async getUserStats(userId?: number) {
     const source = this.determineDataSource();
     console.log(`Generating stats using source: ${source}`);
     const readings = await this.getReadingsForSource(source);
@@ -136,6 +136,12 @@ export class RecommendationService {
       .map(([name, count]) => ({ name, count }));
 
     const ratedBooks = readings.filter((r) => r.rating);
+    
+    // Get or generate reader profile
+    let readerProfile = null;
+    if (userId) {
+      readerProfile = await this.getReaderProfile(userId, readings);
+    }
 
     return {
       source,
@@ -145,7 +151,37 @@ export class RecommendationService {
         ratedBooks.reduce((sum, r) => sum + (r.rating || 0), 0) / ratedBooks.length || 0,
       topGenres,
       topAuthors,
+      readerProfile,
     };
+  }
+
+  /**
+   * Generate reader profile for a user
+   */
+  async getReaderProfile(userId: number, readings: UserReading[]) {
+    const { DatabaseService } = await import('./database.js');
+    const existing = DatabaseService.getReaderProfile(userId);
+    
+    // If profile exists and data hasn't changed significantly, return it
+    // We check if reading count has changed
+    if (existing.profile && existing.readingsCount === readings.length) {
+      try {
+        return JSON.parse(existing.profile);
+      } catch (e) {
+        console.error('Error parsing existing profile:', e);
+      }
+    }
+    
+    // Generate new profile
+    console.log('Generating new reader profile...');
+    try {
+      const profile = await this.aiService.generateReaderProfile(readings);
+      DatabaseService.updateReaderProfile(userId, JSON.stringify(profile), readings.length);
+      return profile;
+    } catch (error) {
+      console.error('Error generating reader profile:', error);
+      return existing.profile ? JSON.parse(existing.profile) : null;
+    }
   }
 
   /**

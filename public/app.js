@@ -1054,6 +1054,32 @@ function displayStats(stats, elementId) {
   sourceDiv.innerHTML = `Data source: <strong>${stats.source === 'booklore' ? 'BookLore' : 'Goodreads'}</strong>`;
   container.appendChild(sourceDiv);
 
+  // Render Reader Profile
+  const profileContainer = document.getElementById('reader-profile');
+  if (stats.readerProfile) {
+    profileContainer.innerHTML = `
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="profile-icon">📚</div>
+          <div class="profile-title-group">
+            <div class="profile-label">Your Reader Persona</div>
+            <h3 class="profile-title">${stats.readerProfile.title}</h3>
+          </div>
+        </div>
+        <div class="profile-content">
+          <p class="profile-summary">${stats.readerProfile.summary}</p>
+          <div class="profile-fun-fact">
+            <span class="fun-fact-icon">💡</span>
+            <span class="fun-fact-text">${stats.readerProfile.funFact}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    profileContainer.classList.remove('hidden');
+  } else {
+    profileContainer.classList.add('hidden');
+  }
+
   // Summary Cards
   const grid = document.createElement('div');
   grid.className = 'stats-grid';

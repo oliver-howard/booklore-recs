@@ -48,6 +48,9 @@ db.exec(`
 const alterColumns = [
   `ALTER TABLE users ADD COLUMN data_source_preference TEXT NOT NULL DEFAULT 'auto'`,
   `ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN reader_profile TEXT`,
+  `ALTER TABLE users ADD COLUMN reader_profile_last_update TEXT`,
+  `ALTER TABLE users ADD COLUMN reader_profile_readings_count INTEGER`,
 ];
 
 for (const statement of alterColumns) {
@@ -69,6 +72,9 @@ export interface User {
   goodreadsReadings?: UserReading[];
   dataSourcePreference: DataSourcePreference;
   isAdmin: boolean;
+  readerProfile?: string;
+  readerProfileLastUpdate?: string;
+  readerProfileReadingsCount?: number;
 }
 
 export class DatabaseService {
@@ -382,4 +388,30 @@ export class DatabaseService {
     stmt.run(isAdmin ? 1 : 0, userId);
   }
 
+  static updateReaderProfile(userId: number, profile: string, readingsCount: number): void {
+    const stmt = db.prepare(`
+      UPDATE users
+      SET reader_profile = ?, reader_profile_last_update = ?, reader_profile_readings_count = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(profile, new Date().toISOString(), readingsCount, userId);
+  }
+
+  static getReaderProfile(userId: number): { profile: string | null; lastUpdate: string | null; readingsCount: number | null } {
+    const stmt = db.prepare(`
+      SELECT reader_profile, reader_profile_last_update, reader_profile_readings_count
+      FROM users
+      WHERE id = ?
+    `);
+
+    const row = stmt.get(userId) as any;
+    if (!row) return { profile: null, lastUpdate: null, readingsCount: null };
+
+    return {
+      profile: row.reader_profile,
+      lastUpdate: row.reader_profile_last_update,
+      readingsCount: row.reader_profile_readings_count,
+    };
+  }
 }

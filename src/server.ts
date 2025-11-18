@@ -598,7 +598,7 @@ app.get(
   '/api/stats',
   asyncHandler(async (req: Request, res: Response) => {
     const service = await getService(req);
-    const stats = await service.getUserStats();
+    const stats = await service.getUserStats(req.session.userId);
     res.json(stats);
   })
 );
