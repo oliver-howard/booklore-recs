@@ -238,11 +238,16 @@ async function loadAppVersion() {
 
 // Show/hide login modal
 function showLoginModal() {
+  if (isAuthenticated) {
+    console.log('Blocked showLoginModal: User is authenticated');
+    return;
+  }
   setAuthMode('login');
   document.getElementById('login-modal').style.display = 'flex';
 }
 
 function hideLoginModal() {
+  console.log('Hiding login modal');
   const modal = document.getElementById('login-modal');
   if (modal) {
     modal.style.display = 'none';
