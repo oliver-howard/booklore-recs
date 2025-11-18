@@ -1,4 +1,5 @@
 // API base URL
+console.log('BookRex App Version: 1.5.2');
 const API_BASE = '/api';
 
 // Track authentication state

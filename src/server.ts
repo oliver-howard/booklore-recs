@@ -88,17 +88,42 @@ logger.info('Session middleware configured', {
 });
 
 // Serve static files from public directory
-// In development, serve from src/../public
-// In production (dist/), serve from dist/../public
+// Disable default index to handle root route manually for cache busting
 const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath, { index: false }));
+
+// Helper to serve HTML with cache-busted script tags
+const serveHtml = (filePath: string, res: Response) => {
+  const fs = require('fs');
+  fs.readFile(filePath, 'utf8', (err: Error, data: string) => {
+    if (err) {
+      logger.error('Error reading HTML file', { error: err.message, path: filePath });
+      return res.status(500).send('Internal Server Error');
+    }
+    // Inject version into app.js script tag
+    const versionedHtml = data.replace(
+      'src="/app.js"', 
+      `src="/app.js?v=${APP_VERSION}"`
+    ).replace(
+      'src="/app.js?v=1.5.2"', // Handle the manual fix if present
+      `src="/app.js?v=${APP_VERSION}"`
+    );
+    
+    res.send(versionedHtml);
+  });
+};
 
 // Page routes
+app.get('/', (req, res) => {
+  serveHtml(path.join(publicPath, 'index.html'), res);
+});
+
 app.get('/settings', (req, res) => {
-  res.sendFile(path.join(publicPath, 'settings.html'));
+  serveHtml(path.join(publicPath, 'settings.html'), res);
 });
 
 app.get('/stats', (req, res) => {
-  res.sendFile(path.join(publicPath, 'stats.html'));
+  serveHtml(path.join(publicPath, 'stats.html'), res);
 });
 
 app.use(express.static(publicPath));
