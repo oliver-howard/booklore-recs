@@ -107,6 +107,9 @@ const serveHtml = (filePath: string, res: Response) => {
     ).replace(
       'src="/app.js?v=1.5.2"', // Handle the manual fix if present
       `src="/app.js?v=${APP_VERSION}"`
+    ).replace(
+      'href="/styles.css"',
+      `href="/styles.css?v=${APP_VERSION}"`
     );
     
     res.send(versionedHtml);
