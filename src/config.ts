@@ -24,6 +24,7 @@ export const config = {
     },
     google: {
       apiKey: process.env.GOOGLE_API_KEY || '',
+      // Use a stable, GA model that works with the public Generative Language API
       model: process.env.GOOGLE_MODEL || 'gemini-2.5-flash',
     },
   },
