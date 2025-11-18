@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.4.0...book-rex-v1.4.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* **ui:** update version indicator ([6c5152c](https://github.com/oliver-howard/book-rex/commit/6c5152c120dd39d8b23ac5bf3586caa368c1fd83))
+
 ## [1.4.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.3.0...book-rex-v1.4.0) (2025-11-17)
 
 
