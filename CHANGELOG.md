@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.6.0...book-rex-v1.6.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* add cache busting for css ([f7c5f06](https://github.com/oliver-howard/book-rex/commit/f7c5f06d67e279db3cb92b693dfa34f295c2f61e))
+
 ## [1.6.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.5...book-rex-v1.6.0) (2025-11-18)
 
 
