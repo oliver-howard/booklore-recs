@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.4.1...book-rex-v1.5.0) (2025-11-18)
+
+
+### Features
+
+* add stats visualizations ([0c6f942](https://github.com/oliver-howard/book-rex/commit/0c6f94281eba97835e460d19b7d005e6d672c294))
+* **ui:** add seperate page for settings/stats ([#12](https://github.com/oliver-howard/book-rex/issues/12)) ([49d8360](https://github.com/oliver-howard/book-rex/commit/49d83604d1c5b1b18a31356023f27db363335416))
+
 ## [1.4.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.4.0...book-rex-v1.4.1) (2025-11-18)
 
 
