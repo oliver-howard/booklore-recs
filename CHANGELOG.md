@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.3](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.2...book-rex-v1.5.3) (2025-11-18)
+
+
+### Bug Fixes
+
+* **auth:** login modal bug ([2824f48](https://github.com/oliver-howard/book-rex/commit/2824f4837621f6b402a07cf321d713bed729cf7b))
+
 ## [1.5.2](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.1...book-rex-v1.5.2) (2025-11-18)
 
 
