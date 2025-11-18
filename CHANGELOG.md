@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.1...book-rex-v1.5.2) (2025-11-18)
+
+
+### Bug Fixes
+
+* **auth:** add debugging for authentication ([7fd4c23](https://github.com/oliver-howard/book-rex/commit/7fd4c23d13ff27f76f1444c97b927d09b4234a07))
+
 ## [1.5.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.0...book-rex-v1.5.1) (2025-11-18)
 
 
