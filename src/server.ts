@@ -204,6 +204,10 @@ app.get('/api/version', (_req: Request, res: Response) => {
 app.get(
   '/api/auth/status',
   asyncHandler(async (req: Request, res: Response) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    
     if (req.session.userId) {
       const user = DatabaseService.getUserById(req.session.userId);
       if (user) {

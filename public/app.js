@@ -67,7 +67,9 @@ function clearAppState() {
 // Check authentication status
 async function checkAuthStatus() {
   try {
-    const response = await fetch(`${API_BASE}/auth/status`);
+    const response = await fetch(`${API_BASE}/auth/status?t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
     const data = await response.json();
 
     if (data.authenticated) {
