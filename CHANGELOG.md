@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.5...book-rex-v1.6.0) (2025-11-18)
+
+
+### Features
+
+* add reader profile summary ([33c75d2](https://github.com/oliver-howard/book-rex/commit/33c75d2d73fe0dc6143656acf1f6f07b1ffc87aa))
+
 ## [1.5.5](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.4...book-rex-v1.5.5) (2025-11-18)
 
 
