@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.4](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.3...book-rex-v1.5.4) (2025-11-18)
+
+
+### Bug Fixes
+
+* **auth:** add cookie policy, network error logging ([23242a2](https://github.com/oliver-howard/book-rex/commit/23242a2b06d827a76b8652f935b8086b6d26e019))
+* **auth:** add guard clause for login modal ([2e90912](https://github.com/oliver-howard/book-rex/commit/2e9091256c153cee9a990786d7ad6fa90ddd1431))
+
 ## [1.5.3](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.2...book-rex-v1.5.3) (2025-11-18)
 
 
