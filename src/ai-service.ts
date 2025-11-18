@@ -389,4 +389,30 @@ Important:
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
     return this.addAmazonLinks(recommendations);
   }
+
+  /**
+   * Generate a fun reader profile
+   */
+  async generateReaderProfile(
+    userReadings: UserReading[]
+  ): Promise<{ title: string; summary: string; funFact: string }> {
+    const systemMessage = `You are a literary personality profiler. Your job is to analyze a user's reading history and create a fun, insightful "Reader Profile" for them.
+    
+    Return your response as a JSON object with this exact structure:
+    {
+      "title": "A creative, fun title for their reading persona (e.g., 'The Dark Fantasy Connoisseur', 'The Non-Fiction Nomad', 'The Cozy Mystery Detective')",
+      "summary": "A 2-3 sentence summary of their reading tastes, favorite tropes, and what they seem to look for in a book.",
+      "funFact": "A fun, specific observation about their habits (e.g., 'You seem to only read books with blue covers', 'You love books published in the 1990s', 'You have a secret soft spot for romance novels')."
+    }
+    
+    Important:
+    - Return ONLY the JSON object, no additional text
+    - Be creative, witty, and encouraging
+    - Use plain text only`;
+
+    const userMessage = `Analyze this reading history:\n\n${this.formatReadingHistory(userReadings)}`;
+
+    const response = await this.generateCompletion(systemMessage, userMessage);
+    return this.cleanAndParseJSON<{ title: string; summary: string; funFact: string }>(response);
+  }
 }
