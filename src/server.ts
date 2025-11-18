@@ -93,6 +93,16 @@ logger.info('Session middleware configured', {
 // In development, serve from src/../public
 // In production (dist/), serve from dist/../public
 const publicPath = path.join(__dirname, '../public');
+
+// Page routes
+app.get('/settings', (req, res) => {
+  res.sendFile(path.join(publicPath, 'settings.html'));
+});
+
+app.get('/stats', (req, res) => {
+  res.sendFile(path.join(publicPath, 'stats.html'));
+});
+
 app.use(express.static(publicPath));
 
 // Session type declaration

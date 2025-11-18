@@ -82,15 +82,36 @@ async function checkAuthStatus() {
       hideLoginModal();
 
       showUserInfo(data.username);
-      updateUIForMode();
-      updateSettingsUI(data);
-      updateDataSourceToggle();
-      if (isAdmin) {
-        await loadAdminUsers();
-      }
-
-      if (isNewlyAuthenticated) {
-        loadTBR();
+      
+      try {
+        // Page-specific initialization
+        const path = window.location.pathname;
+        if (path === '/settings') {
+          updateSettingsUI(data);
+          updateDataSourceToggle();
+          loadAppVersion();
+          if (isAdmin) {
+            await loadAdminUsers();
+          }
+        } else if (path === '/stats') {
+          if (hasReadingHistory) {
+            getStats();
+          } else {
+            const statsResults = document.getElementById('stats-results');
+            if (statsResults) {
+              statsResults.innerHTML = 
+                '<p class="error-message">Connect a data source in Settings to view statistics.</p>';
+            }
+          }
+        } else {
+          // Home page
+          updateUIForMode();
+          if (isNewlyAuthenticated) {
+            loadTBR();
+          }
+        }
+      } catch (uiError) {
+        console.error('Error updating UI after auth:', uiError);
       }
     } else {
       isAuthenticated = false;
@@ -112,7 +133,7 @@ async function checkAuthStatus() {
 // Update UI based on available data sources
 function updateUIForMode() {
   // Tabs that require reading history (BookLore or Goodreads CSV)
-  const historyRequiredTabs = ['similar', 'contrasting', 'blindspots', 'stats'];
+  const historyRequiredTabs = ['similar', 'contrasting', 'blindspots'];
 
   historyRequiredTabs.forEach(tab => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
@@ -142,22 +163,10 @@ function updateUIForMode() {
     }
   }
 
-  const statsHeaderBtn = document.getElementById('stats-header-btn');
-  if (statsHeaderBtn) {
-    if (hasReadingHistory) {
-      statsHeaderBtn.disabled = false;
-      statsHeaderBtn.title = '';
-      statsHeaderBtn.style.opacity = '1';
-      statsHeaderBtn.style.cursor = 'pointer';
-    } else {
-      statsHeaderBtn.disabled = true;
-      statsHeaderBtn.title = 'Connect a data source in Settings to view statistics';
-      statsHeaderBtn.style.opacity = '0.5';
-      statsHeaderBtn.style.cursor = 'not-allowed';
+    if (needsHistory && !hasReadingHistory) {
+      switchTab('custom');
     }
   }
-}
-
 // Update settings UI based on current configuration
 function updateSettingsUI(data) {
   // Update BookLore status
@@ -223,7 +232,10 @@ function showLoginModal() {
 }
 
 function hideLoginModal() {
-  document.getElementById('login-modal').style.display = 'none';
+  const modal = document.getElementById('login-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 // Show user info
@@ -294,6 +306,7 @@ async function handleAuth(event) {
     const data = await response.json();
 
     if (data.success) {
+      hideLoginModal();
       await checkAuthStatus();
     } else {
       errorElement.textContent = data.message || `${action === 'login' ? 'Login' : 'Registration'} failed`;
@@ -307,19 +320,6 @@ async function handleAuth(event) {
 }
 
 // Settings functions
-function showSettings() {
-  switchTab('settings');
-}
-
-function showStats() {
-  if (!hasReadingHistory) {
-    showError('Connect BookLore or upload a Goodreads CSV to view statistics.');
-    return;
-  }
-  switchTab('stats');
-  getStats();
-}
-
 function goToSimilarRecommendations() {
   switchTab('similar');
   getSimilarRecommendations();
