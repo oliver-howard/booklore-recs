@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.0...book-rex-v1.5.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* **auth:** prevent caching of auth status to resolve login loop ([b83f1a9](https://github.com/oliver-howard/book-rex/commit/b83f1a94220649e859baaf284b2844773eec8ec1))
+
 ## [1.5.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.4.1...book-rex-v1.5.0) (2025-11-18)
 
 
