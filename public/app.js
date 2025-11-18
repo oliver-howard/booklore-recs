@@ -82,15 +82,36 @@ async function checkAuthStatus() {
       hideLoginModal();
 
       showUserInfo(data.username);
-      updateUIForMode();
-      updateSettingsUI(data);
-      updateDataSourceToggle();
-      if (isAdmin) {
-        await loadAdminUsers();
-      }
-
-      if (isNewlyAuthenticated) {
-        loadTBR();
+      
+      try {
+        // Page-specific initialization
+        const path = window.location.pathname;
+        if (path === '/settings') {
+          updateSettingsUI(data);
+          updateDataSourceToggle();
+          loadAppVersion();
+          if (isAdmin) {
+            await loadAdminUsers();
+          }
+        } else if (path === '/stats') {
+          if (hasReadingHistory) {
+            getStats();
+          } else {
+            const statsResults = document.getElementById('stats-results');
+            if (statsResults) {
+              statsResults.innerHTML = 
+                '<p class="error-message">Connect a data source in Settings to view statistics.</p>';
+            }
+          }
+        } else {
+          // Home page
+          updateUIForMode();
+          if (isNewlyAuthenticated) {
+            loadTBR();
+          }
+        }
+      } catch (uiError) {
+        console.error('Error updating UI after auth:', uiError);
       }
     } else {
       isAuthenticated = false;
@@ -112,7 +133,7 @@ async function checkAuthStatus() {
 // Update UI based on available data sources
 function updateUIForMode() {
   // Tabs that require reading history (BookLore or Goodreads CSV)
-  const historyRequiredTabs = ['similar', 'contrasting', 'blindspots', 'stats'];
+  const historyRequiredTabs = ['similar', 'contrasting', 'blindspots'];
 
   historyRequiredTabs.forEach(tab => {
     const button = document.querySelector(`[data-tab="${tab}"]`);
@@ -142,22 +163,10 @@ function updateUIForMode() {
     }
   }
 
-  const statsHeaderBtn = document.getElementById('stats-header-btn');
-  if (statsHeaderBtn) {
-    if (hasReadingHistory) {
-      statsHeaderBtn.disabled = false;
-      statsHeaderBtn.title = '';
-      statsHeaderBtn.style.opacity = '1';
-      statsHeaderBtn.style.cursor = 'pointer';
-    } else {
-      statsHeaderBtn.disabled = true;
-      statsHeaderBtn.title = 'Connect a data source in Settings to view statistics';
-      statsHeaderBtn.style.opacity = '0.5';
-      statsHeaderBtn.style.cursor = 'not-allowed';
+    if (needsHistory && !hasReadingHistory) {
+      switchTab('custom');
     }
   }
-}
-
 // Update settings UI based on current configuration
 function updateSettingsUI(data) {
   // Update BookLore status
@@ -223,7 +232,10 @@ function showLoginModal() {
 }
 
 function hideLoginModal() {
-  document.getElementById('login-modal').style.display = 'none';
+  const modal = document.getElementById('login-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 // Show user info
@@ -294,6 +306,7 @@ async function handleAuth(event) {
     const data = await response.json();
 
     if (data.success) {
+      hideLoginModal();
       await checkAuthStatus();
     } else {
       errorElement.textContent = data.message || `${action === 'login' ? 'Login' : 'Registration'} failed`;
@@ -307,19 +320,6 @@ async function handleAuth(event) {
 }
 
 // Settings functions
-function showSettings() {
-  switchTab('settings');
-}
-
-function showStats() {
-  if (!hasReadingHistory) {
-    showError('Connect BookLore or upload a Goodreads CSV to view statistics.');
-    return;
-  }
-  switchTab('stats');
-  getStats();
-}
-
 function goToSimilarRecommendations() {
   switchTab('similar');
   getSimilarRecommendations();
@@ -1019,44 +1019,126 @@ function displayBlindSpotsAnalysis(analysis, elementId) {
 
 function displayStats(stats, elementId) {
   const resultsElement = document.getElementById(elementId);
+  resultsElement.innerHTML = ''; // Clear previous content
 
-  let html = '<div class="stats-container">';
+  const container = document.createElement('div');
+  container.className = 'stats-container';
 
-  html += `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value">${stats.totalBooksRead}</div>
-        <div class="stat-label">Books Read</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">${stats.booksRated}</div>
-        <div class="stat-label">Books Rated</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">${stats.averageRating.toFixed(1)}/10</div>
-        <div class="stat-label">Average Rating</div>
-      </div>
+  // Source Indicator
+  const sourceDiv = document.createElement('div');
+  sourceDiv.className = 'stats-source';
+  sourceDiv.innerHTML = `Data source: <strong>${stats.source === 'booklore' ? 'BookLore' : 'Goodreads'}</strong>`;
+  container.appendChild(sourceDiv);
+
+  // Summary Cards
+  const grid = document.createElement('div');
+  grid.className = 'stats-grid';
+  grid.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${stats.totalBooksRead}</div>
+      <div class="stat-label">Books Read</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.booksRated}</div>
+      <div class="stat-label">Books Rated</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.averageRating.toFixed(1)}/10</div>
+      <div class="stat-label">Average Rating</div>
     </div>
   `;
+  container.appendChild(grid);
 
+  // Charts Container
+  const chartsContainer = document.createElement('div');
+  chartsContainer.className = 'charts-wrapper';
+
+  // Top Genres Chart
   if (stats.topGenres && stats.topGenres.length > 0) {
-    html += '<div class="list-section"><h3>Top Genres</h3><ul>';
-    stats.topGenres.forEach(genre => {
-      html += `<li>${genre}</li>`;
-    });
-    html += '</ul></div>';
+    const genreSection = document.createElement('div');
+    genreSection.className = 'chart-section';
+    genreSection.innerHTML = '<h3>Top Genres</h3><div id="genre-chart"></div>';
+    chartsContainer.appendChild(genreSection);
   }
 
+  // Top Authors Chart
   if (stats.topAuthors && stats.topAuthors.length > 0) {
-    html += '<div class="list-section"><h3>Top Authors</h3><ul>';
-    stats.topAuthors.forEach(author => {
-      html += `<li>${author}</li>`;
-    });
-    html += '</ul></div>';
+    const authorSection = document.createElement('div');
+    authorSection.className = 'chart-section';
+    authorSection.innerHTML = '<h3>Top Authors</h3><div id="author-chart"></div>';
+    chartsContainer.appendChild(authorSection);
   }
 
-  html += '</div>';
-  resultsElement.innerHTML = html;
+  container.appendChild(chartsContainer);
+  resultsElement.appendChild(container);
+
+  // Render D3 Charts
+  if (stats.topGenres && stats.topGenres.length > 0) {
+    renderBarChart(stats.topGenres, '#genre-chart', 'Genres');
+  }
+  if (stats.topAuthors && stats.topAuthors.length > 0) {
+    renderBarChart(stats.topAuthors, '#author-chart', 'Authors');
+  }
+}
+
+function renderBarChart(data, selector, label) {
+  // Set dimensions
+  const margin = { top: 20, right: 30, bottom: 40, left: 120 };
+  const width = 500 - margin.left - margin.right;
+  const height = 300 - margin.top - margin.bottom;
+
+  // Append SVG
+  const svg = d3.select(selector)
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // X axis
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.count)])
+    .range([0, width]);
+  
+  svg.append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(x).ticks(5))
+    .selectAll("text")
+    .attr("transform", "translate(-10,0)rotate(-45)")
+    .style("text-anchor", "end");
+
+  // Y axis
+  const y = d3.scaleBand()
+    .range([0, height])
+    .domain(data.map(d => d.name))
+    .padding(0.2);
+  
+  svg.append("g")
+    .call(d3.axisLeft(y))
+    .selectAll("text")
+    .style("font-size", "12px");
+
+  // Bars
+  svg.selectAll("myRect")
+    .data(data)
+    .join("rect")
+    .attr("x", x(0))
+    .attr("y", d => y(d.name))
+    .attr("width", d => x(d.count))
+    .attr("height", y.bandwidth())
+    .attr("fill", "var(--primary)")
+    .style("rx", 4); // Rounded corners
+
+  // Labels on bars
+  svg.selectAll("myLabel")
+    .data(data)
+    .join("text")
+    .attr("x", d => x(d.count) + 5)
+    .attr("y", d => y(d.name) + y.bandwidth() / 2)
+    .attr("dy", "0.35em")
+    .text(d => d.count)
+    .style("fill", "var(--text)")
+    .style("font-size", "12px");
 }
 
 // TBR functions
