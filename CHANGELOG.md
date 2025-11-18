@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.5](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.4...book-rex-v1.5.5) (2025-11-18)
+
+
+### Bug Fixes
+
+* **auth:** add cache busting ([5bb5030](https://github.com/oliver-howard/book-rex/commit/5bb50307c9b3d753477526f31d3250833439b626))
+
 ## [1.5.4](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.5.3...book-rex-v1.5.4) (2025-11-18)
 
 
