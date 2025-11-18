@@ -134,6 +134,13 @@ async function checkAuthStatus() {
     }
   } catch (error) {
     console.error('Error checking auth status:', error);
+    // Show error in modal if visible
+    const errorDiv = document.getElementById('auth-error');
+    if (errorDiv) {
+      errorDiv.textContent = `Connection Error: ${error.message}`;
+      errorDiv.classList.remove('hidden');
+    }
+    
     // Only show login modal on network/server errors if we weren't already authenticated
     if (!isAuthenticated) {
       showLoginModal();
