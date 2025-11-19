@@ -1,0 +1,127 @@
+import { Request, Response } from 'express';
+import { DatabaseService } from '../database.js';
+import { ServiceFactory } from '../services/service-factory.js';
+import { ReadingAnalysis } from '../types.js';
+
+/**
+ * Recommendation Controller
+ * Handles book recommendation routes
+ */
+export class RecommendationController {
+  private serviceFactory: ServiceFactory;
+
+  constructor(serviceFactory: ServiceFactory) {
+    this.serviceFactory = serviceFactory;
+  }
+
+  /**
+   * Get user statistics
+   * GET /api/stats
+   */
+  getStats = async (req: Request, res: Response) => {
+    try {
+      const service = await this.serviceFactory.getService(req);
+      const stats = await service.getUserStats(req.session.userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(401).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get stats',
+      });
+    }
+  };
+
+  /**
+   * Get similar recommendations
+   * POST /api/recommendations/similar
+   */
+  getSimilar = async (req: Request, res: Response) => {
+    try {
+      const service = await this.serviceFactory.getService(req);
+      const { maxRecommendations } = req.body;
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const recommendations = await service.getRecommendations(
+        'similar',
+        maxRecommendations,
+        tbrBooks
+      );
+      res.json({ recommendations });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get recommendations',
+      });
+    }
+  };
+
+  /**
+   * Get contrasting recommendations
+   * POST /api/recommendations/contrasting
+   */
+  getContrasting = async (req: Request, res: Response) => {
+    try {
+      const service = await this.serviceFactory.getService(req);
+      const { maxRecommendations } = req.body;
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const recommendations = await service.getRecommendations(
+        'contrasting',
+        maxRecommendations,
+        tbrBooks
+      );
+      res.json({ recommendations });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get recommendations',
+      });
+    }
+  };
+
+  /**
+   * Get blind spots analysis
+   * POST /api/recommendations/blindspots
+   */
+  getBlindspots = async (req: Request, res: Response) => {
+    try {
+      const service = await this.serviceFactory.getService(req);
+      const analysis = (await service.getRecommendations('blindspots')) as ReadingAnalysis;
+      res.json({ analysis });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get blind spots',
+      });
+    }
+  };
+
+  /**
+   * Get custom recommendations
+   * POST /api/recommendations/custom
+   */
+  getCustom = async (req: Request, res: Response) => {
+    try {
+      const service = await this.serviceFactory.getService(req);
+      const { criteria, maxRecommendations } = req.body;
+
+      if (!criteria) {
+        return res.status(400).json({
+          success: false,
+          message: 'Criteria is required for custom recommendations',
+        });
+      }
+
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const recommendations = await service.getCustomRecommendations(
+        criteria,
+        maxRecommendations,
+        tbrBooks
+      );
+      res.json({ recommendations });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get custom recommendations',
+      });
+    }
+  };
+}

@@ -544,7 +544,7 @@ function promptPasswordReset(userId) {
     return;
   }
   if (newPassword.length < 6) {
-    alert('Password must be at least 6 characters.');
+    showNotification('Password must be at least 6 characters.', 'error');
     return;
   }
   updateUserPassword(userId, newPassword);
@@ -605,7 +605,7 @@ async function saveBookLoreCredentials(event) {
   const password = document.getElementById('booklore-password').value;
 
   if (!username || !password) {
-    alert('Please enter both username and password');
+    showNotification('Please enter both username and password', 'error');
     return;
   }
 
@@ -619,17 +619,17 @@ async function saveBookLoreCredentials(event) {
     const data = await response.json();
 
     if (data.success) {
-      alert('BookLore credentials saved successfully!');
+      showNotification('BookLore credentials saved successfully!', 'success');
       // Clear the form
       document.getElementById('booklore-form').reset();
       // Refresh auth status to update UI
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to save credentials');
+      showNotification(data.message || 'Failed to save credentials', 'error');
     }
   } catch (error) {
     console.error('Error saving BookLore credentials:', error);
-    alert('Failed to save credentials. Please try again.');
+    showNotification('Failed to save credentials. Please try again.', 'error');
   }
 }
 
@@ -646,14 +646,14 @@ async function removeBookLoreCredentials() {
     const data = await response.json();
 
     if (data.success) {
-      alert('BookLore connection removed');
+      showNotification('BookLore connection removed', 'success');
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to remove connection');
+      showNotification(data.message || 'Failed to remove connection', 'error');
     }
   } catch (error) {
     console.error('Error removing BookLore credentials:', error);
-    alert('Failed to remove connection. Please try again.');
+    showNotification('Failed to remove connection. Please try again.', 'error');
   }
 }
 
@@ -713,14 +713,14 @@ async function removeGoodreadsData() {
     const data = await response.json();
 
     if (data.success) {
-      alert('Goodreads data removed');
+      showNotification('Goodreads data removed', 'success');
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to remove data');
+      showNotification(data.message || 'Failed to remove data', 'error');
     }
   } catch (error) {
     console.error('Error removing Goodreads data:', error);
-    alert('Failed to remove data. Please try again.');
+    showNotification('Failed to remove data. Please try again.', 'error');
   }
 }
 

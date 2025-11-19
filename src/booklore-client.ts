@@ -147,33 +147,51 @@ export class BookLoreClient {
         this.log(`Sample book structure:`, JSON.stringify(data[0]).substring(0, 200));
 
         const readBooks = data.filter((book: any) => book.readStatus === 'READ');
-        this.log(`Found ${readBooks.length} read books, fetching notes...`);
+        this.log(`Found ${readBooks.length} read books, fetching notes in parallel...`);
 
-        // Fetch notes for all read books
-        const readings: UserReading[] = await Promise.all(
-          readBooks.map(async (book: any) => {
-            const notes = await this.getBookNotes(book.id);
-
-            return {
+        // Fetch notes for all read books in parallel with concurrency limit
+        // to avoid overwhelming the API
+        const CONCURRENCY_LIMIT = 5;
+        const notesPromises: Promise<{ bookId: number; notes: string | undefined }>[] = [];
+        
+        for (let i = 0; i < readBooks.length; i += CONCURRENCY_LIMIT) {
+          const batch = readBooks.slice(i, i + CONCURRENCY_LIMIT);
+          const batchResults = await Promise.all(
+            batch.map(async (book: any) => ({
               bookId: book.id,
-              book: {
-                id: book.id,
-                title: book.metadata?.title || book.fileName?.replace(/\.[^.]+$/, '') || 'Unknown',
-                author: book.metadata?.authors?.[0] || book.fileName?.split(' - ')[1]?.replace(/\.[^.]+$/, ''),
-                description: book.metadata?.description || book.metadata?.subtitle,
-                genres: book.metadata?.categories || book.metadata?.moods || [],
-                isbn: book.metadata?.isbn13 || book.metadata?.isbn10,
-                publishedDate: book.metadata?.publishedDate,
-                coverImageUrl: book.metadata?.coverUrl || book.thumbnailUrl,
-              },
-              rating: book.metadata?.personalRating,
-              status: 'read' as const,
-              finishedAt: book.dateFinished,
-              notes: notes, // Now includes actual notes from the API
-              review: undefined, // BookLore doesn't have a separate review field
-            };
-          })
-        );
+              notes: await this.getBookNotes(book.id),
+            }))
+          );
+          notesPromises.push(...batchResults.map(r => Promise.resolve(r)));
+        }
+        
+        const notesResults = await Promise.all(notesPromises);
+        const notesMap = new Map<number, string | undefined>();
+        notesResults.forEach(({ bookId, notes }) => {
+          notesMap.set(bookId, notes);
+        });
+
+        // Transform books into UserReading objects
+        const readings: UserReading[] = readBooks.map((book: any) => {
+          return {
+            bookId: book.id,
+            book: {
+              id: book.id,
+              title: book.metadata?.title || book.fileName?.replace(/\.[^.]+$/, '') || 'Unknown',
+              author: book.metadata?.authors?.[0] || book.fileName?.split(' - ')[1]?.replace(/\.[^.]+$/, ''),
+              description: book.metadata?.description || book.metadata?.subtitle,
+              genres: book.metadata?.categories || book.metadata?.moods || [],
+              isbn: book.metadata?.isbn13 || book.metadata?.isbn10,
+              publishedDate: book.metadata?.publishedDate,
+              coverImageUrl: book.metadata?.coverUrl || book.thumbnailUrl,
+            },
+            rating: book.metadata?.personalRating,
+            status: 'read' as const,
+            finishedAt: book.dateFinished,
+            notes: notesMap.get(book.id),
+            review: undefined, // BookLore doesn't have a separate review field
+          };
+        });
 
         return readings;
       }
@@ -256,48 +274,5 @@ export class BookLoreClient {
   async getUserRatedBooks(): Promise<UserReading[]> {
     const readings = await this.getUserReadingHistory();
     return readings.filter((reading) => reading.rating !== undefined && reading.rating > 0);
-  }
-
-  /**
-   * Get user's favorite genres based on reading history
-   */
-  async getUserFavoriteGenres(): Promise<string[]> {
-    const readings = await this.getUserReadingHistory();
-    const genreMap = new Map<string, number>();
-
-    readings.forEach((reading) => {
-      if (reading.book.genres) {
-        reading.book.genres.forEach((genre) => {
-          genreMap.set(genre, (genreMap.get(genre) || 0) + (reading.rating || 3));
-        });
-      }
-    });
-
-    // Sort genres by weighted score and return top ones
-    return Array.from(genreMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([genre]) => genre);
-  }
-
-  /**
-   * Get user's favorite authors based on reading history
-   */
-  async getUserFavoriteAuthors(): Promise<string[]> {
-    const readings = await this.getUserReadingHistory();
-    const authorMap = new Map<string, number>();
-
-    readings.forEach((reading) => {
-      if (reading.book.author) {
-        const author = reading.book.author;
-        authorMap.set(author, (authorMap.get(author) || 0) + (reading.rating || 3));
-      }
-    });
-
-    // Sort authors by weighted score and return top ones
-    return Array.from(authorMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([author]) => author);
   }
 }
