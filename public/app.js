@@ -780,6 +780,12 @@ function buildRecommendationActions(rec) {
 
   return `
     <div class="recommendation-actions">
+      <button
+        class="btn btn-sm btn-primary"
+        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}')"
+      >
+        View Details
+      </button>
       ${rec.amazonUrl ? `
         <a href="${escapeHtml(rec.amazonUrl)}" target="_blank" class="amazon-link">
           View on Amazon →
@@ -1400,3 +1406,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// Book Details Modal Functions
+async function fetchBookDetails(title, author) {
+  showLoading('Fetching book details...');
+  try {
+    const response = await fetch(`${API_BASE}/books/details?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`);
+    const data = await response.json();
+    hideLoading();
+
+    if (data.success && data.details) {
+      showBookModal(data.details);
+    } else {
+      showError('Could not find details for this book.');
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Error fetching book details:', error);
+    showError('Failed to fetch book details.');
+  }
+}
+
+function showBookModal(book) {
+  const modal = document.getElementById('book-modal');
+  
+  // Populate fields
+  document.getElementById('modal-book-title').textContent = book.title;
+  
+  const authorName = book.contributions && book.contributions[0] && book.contributions[0].author 
+    ? book.contributions[0].author.name 
+    : 'Unknown Author';
+  document.getElementById('modal-book-author').textContent = authorName;
+  
+  document.getElementById('modal-book-description').textContent = book.description || 'No description available.';
+  
+  const pages = book.pages ? `${book.pages} pages` : '';
+  const rating = book.rating ? `★ ${book.rating.toFixed(1)}` : '';
+  const year = book.release_date ? new Date(book.release_date).getFullYear() : '';
+  
+  document.getElementById('modal-book-pages').textContent = pages;
+  document.getElementById('modal-book-rating').textContent = rating;
+  document.getElementById('modal-book-year').textContent = year;
+  
+  const coverImg = document.getElementById('modal-book-cover');
+  if (book.images && book.images.length > 0) {
+    coverImg.src = book.images[0].url;
+  } else {
+    coverImg.src = ''; 
+  }
+
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+}
+
+function closeBookModal() {
+  const modal = document.getElementById('book-modal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const bookModal = document.getElementById('book-modal');
+  if (event.target === bookModal) {
+    closeBookModal();
+  }
+  
+  const loginModal = document.getElementById('login-modal');
+  if (event.target === loginModal && isAuthenticated) {
+      hideLoginModal();
+  }
+}

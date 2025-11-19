@@ -209,6 +209,33 @@
       <span class="theme-icon" id="theme-icon">🌙</span>
     </button>
 
+    <!-- Book Details Modal -->
+    <div id="book-modal" class="modal">
+      <div class="modal-content book-modal-content">
+        <span class="close-modal" onclick="closeBookModal()">&times;</span>
+        <div id="book-modal-body">
+          <div class="book-modal-header">
+            <div class="book-cover-container">
+              <img id="modal-book-cover" src="" alt="Book Cover" class="book-cover-img" />
+            </div>
+            <div class="book-info">
+              <h2 id="modal-book-title"></h2>
+              <p id="modal-book-author" class="modal-author"></p>
+              <div class="book-meta">
+                <span id="modal-book-pages"></span>
+                <span id="modal-book-rating"></span>
+                <span id="modal-book-year"></span>
+              </div>
+            </div>
+          </div>
+          <div class="book-description">
+            <h3>Description</h3>
+            <p id="modal-book-description"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="/app.js"></script>
   </body>
 </html>

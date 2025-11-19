@@ -9,6 +9,7 @@ import { validateConfig } from './config.js';
 import { Recommendation, ReadingAnalysis, TBRBook, UserReading, DataSourcePreference } from './types.js';
 import { DatabaseService } from './database.js';
 import { GoodreadsParser } from './goodreads-parser.js';
+import { HardcoverClient } from './hardcover-client.js';
 import { logger, requestLogger, currentLogLevel } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -59,6 +60,11 @@ if (trustProxySetting !== undefined) {
   app.set('trust proxy', trustProxySetting);
   logger.info('Trust proxy enabled', { trustProxy: trustProxySetting });
 }
+
+// Initialize Hardcover Client
+const hardcoverClient = new HardcoverClient({
+  apiToken: process.env.HARDCOVER_API_TOKEN || '',
+});
 
 // Middleware
 app.use(cors());
@@ -762,6 +768,38 @@ app.post(
 
     DatabaseService.updateAdminStatus(targetId, !!isAdmin);
     res.json({ success: true, message: 'User role updated' });
+  })
+);
+
+// Get book details from Hardcover
+app.get(
+  '/api/books/details',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { title, author } = req.query;
+
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required',
+      });
+    }
+
+    const authorStr = typeof author === 'string' ? author : '';
+
+    try {
+      const details = await hardcoverClient.getBookDetails(title, authorStr);
+      res.json({ success: true, details });
+    } catch (error) {
+      logger.error('Error fetching book details', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        title,
+        author,
+      });
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch book details',
+      });
+    }
   })
 );
 

@@ -1,4 +1,4 @@
-import { UserReading } from './types.js';
+import { UserReading, HardcoverBook } from './types.js';
 
 class HardcoverGraphQLError extends Error {
   errors: any[];
@@ -13,16 +13,6 @@ class HardcoverGraphQLError extends Error {
 export interface HardcoverConfig {
   apiToken: string;
   apiUrl?: string;
-}
-
-export interface HardcoverBook {
-  id: number;
-  title: string;
-  contributions?: Array<{
-    author?: {
-      name: string;
-    };
-  }>;
 }
 
 export interface HardcoverUserBook {
@@ -55,7 +45,7 @@ export class HardcoverClient {
 
   constructor(config: HardcoverConfig) {
     this.apiUrl = config.apiUrl || 'https://api.hardcover.app/v1/graphql';
-    this.apiToken = config.apiToken.trim(); // Ensure no whitespace
+    this.apiToken = config.apiToken.trim().replace(/^Bearer\s+/i, ''); // Ensure no whitespace or existing Bearer prefix
     // Always enable debug for Hardcover client to help troubleshoot
     this.debugMode = true;
     this.supportsFinishedAt = HardcoverClient.finishedAtCapability; // unknown until first attempt
@@ -217,6 +207,75 @@ export class HardcoverClient {
       return bestMatch;
     } catch (error) {
       this.log('Search error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get detailed book information
+   */
+  async getBookDetails(title: string, author: string): Promise<HardcoverBook | null> {
+    this.log(`Getting details for book: "${title}" by ${author}`);
+
+    const searchQuery = author ? `${title} ${author}` : title;
+
+    const query = `
+      query BookDetails($searchQuery: String!) {
+        search(
+          query: $searchQuery
+          query_type: "Book"
+          per_page: 5
+        ) {
+          results
+        }
+      }
+    `;
+
+    try {
+      const data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
+        searchQuery,
+      });
+
+      const hits = data.search?.results?.hits || [];
+
+      if (hits.length === 0) {
+        return null;
+      }
+
+      // Extract book data
+      const books: HardcoverBook[] = hits.map((hit: any) => {
+        const book = hit.document;
+        return {
+          id: parseInt(book.id),
+          title: book.title,
+          description: book.description,
+          release_date: book.release_date,
+          pages: book.pages,
+          images: book.image ? [book.image] : (book.images || []),
+          contributions: book.contributions || [],
+          rating: book.rating,
+          users_count: book.users_count,
+          likes_count: book.likes_count,
+        };
+      });
+
+      // Find best match
+      let bestMatch = books.find(b =>
+        b.title.toLowerCase() === title.toLowerCase()
+      );
+
+      if (!bestMatch && author) {
+        bestMatch = books.find(b => {
+          const bookAuthors = b.contributions?.map((c: any) => c.author?.name.toLowerCase()) || [];
+          return bookAuthors.some((a: any) =>
+            a?.includes(author.toLowerCase()) || author.toLowerCase().includes(a || '')
+          );
+        });
+      }
+
+      return bestMatch || books[0];
+    } catch (error) {
+      this.log('Get details error:', error);
       return null;
     }
   }
