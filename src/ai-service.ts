@@ -156,11 +156,11 @@ export class AIService {
   }
 
   /**
-   * Format user's reading history for AI context
+   * Format user's reading history for AI context (detailed)
    */
   private formatReadingHistory(readings: UserReading[]): string {
-    // Optimize: Limit to most recent 50 books to reduce token count and latency
-    const recentReadings = readings.slice(-50);
+    // Optimize: Limit to most recent 100 books for detailed context
+    const recentReadings = readings.slice(-100);
     
     return recentReadings
       .map((reading) => {
@@ -186,6 +186,23 @@ export class AIService {
         return entry;
       })
       .join('\n');
+  }
+
+  /**
+   * Format exclusion list of ALL books user has read (simple title + author)
+   * This is used to prevent the AI from recommending books already in their library
+   */
+  private formatExclusionList(readings: UserReading[]): string {
+    if (readings.length === 0) {
+      return 'None';
+    }
+
+    // Create a simple list of "Title" by Author for all books
+    const bookList = readings
+      .map((reading) => `"${reading.book.title}" by ${reading.book.author || 'Unknown'}`)
+      .join(', ');
+
+    return bookList;
   }
 
   /**
@@ -233,8 +250,9 @@ Important:
 - Provide exactly ${maxRecommendations} recommendations
 - Do not recommend books already in the user's reading history or currently on their TBR list`;
 
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `Here is the user's detailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
@@ -269,8 +287,9 @@ Important:
 - Do not recommend books already in the user's reading history or currently in their TBR list
 - Focus on intellectual opposition and alternative frameworks`;
 
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `Here is the user's detailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
@@ -309,9 +328,11 @@ Important:
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Identify 3-5 blind spots with 2-3 recommendations each
 - List 5-7 observable patterns in their reading habits
-- Suggest 5-7 topics they might be interested in exploring`;
+- Suggest 5-7 topics they might be interested in exploring
+- DO NOT recommend any books the user has already read`;
 
-    const userMessage = `Analyze this reading history:\n\n${this.formatReadingHistory(userReadings)}`;
+    const exclusionList = this.formatExclusionList(userReadings);
+    const userMessage = `Analyze this reading history (most recent ${Math.min(100, userReadings.length)} books shown in detail):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const analysis = this.cleanAndParseJSON<ReadingAnalysis>(response);
@@ -351,8 +372,9 @@ Important:
 - Provide exactly ${maxRecommendations} recommendations
 - Do not recommend books already in the user's reading history or on their TBR list`;
 
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `User's criteria: ${criteria}\n\nReading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `User's criteria: ${criteria}\n\nDetailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
     const response = await this.generateCompletion(systemMessage, userMessage);
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
