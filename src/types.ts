@@ -42,6 +42,7 @@ export const RecommendationSchema = z.object({
   reasoning: z.string(),
   estimatedMatch: z.number().min(0).max(100).optional(),
   amazonUrl: z.string().optional(), // Amazon search/purchase link
+  coverUrl: z.string().optional(),
 });
 
 export const BlindSpotSchema = z.object({
@@ -56,9 +57,33 @@ export const ReadingAnalysisSchema = z.object({
   suggestedTopics: z.array(z.string()),
 });
 
-export type Recommendation = z.infer<typeof RecommendationSchema>;
+export type Recommendation = z.infer<typeof RecommendationSchema> & {
+  details?: HardcoverBook;
+};
 export type BlindSpot = z.infer<typeof BlindSpotSchema>;
 export type ReadingAnalysis = z.infer<typeof ReadingAnalysisSchema>;
+
+export interface HardcoverBook {
+  id: number;
+  slug?: string;
+  title: string;
+  description?: string;
+  release_date?: string;
+  pages?: number;
+  images?: Array<{
+    url: string;
+    width?: number;
+    height?: number;
+  }>;
+  contributions?: Array<{
+    author?: {
+      name: string;
+    };
+  }>;
+  rating?: number;
+  users_count?: number;
+  likes_count?: number;
+}
 
 // AI Provider Types
 export type AIProvider = 'anthropic' | 'openai' | 'google';
@@ -81,5 +106,6 @@ export interface TBRBook {
   author: string;
   reasoning?: string;
   amazonUrl?: string;
+  coverUrl?: string;
   addedAt: string;
 }

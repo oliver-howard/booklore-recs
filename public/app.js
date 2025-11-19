@@ -777,9 +777,16 @@ function buildRecommendationActions(rec) {
   const authorData = encodeURIComponent(rec.author || 'Unknown');
   const reasoningData = encodeURIComponent(rec.reasoning || '');
   const amazonData = rec.amazonUrl ? encodeURIComponent(rec.amazonUrl) : '';
+  const coverData = rec.coverUrl ? encodeURIComponent(rec.coverUrl) : '';
 
   return `
     <div class="recommendation-actions">
+      <button
+        class="btn btn-sm btn-primary"
+        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}', '${escapeHtml(rec.amazonUrl || '')}', this)"
+      >
+        View Details
+      </button>
       ${rec.amazonUrl ? `
         <a href="${escapeHtml(rec.amazonUrl)}" target="_blank" class="amazon-link">
           View on Amazon →
@@ -791,6 +798,7 @@ function buildRecommendationActions(rec) {
         data-author="${authorData}"
         data-reasoning="${reasoningData}"
         data-amazon-url="${amazonData}"
+        data-cover-url="${coverData}"
         onclick="addRecommendationToTBR(this)"
       >
         Add to TBR
@@ -806,15 +814,27 @@ function renderRecommendationMarkup(rec, index) {
 
   return `
     <li class="recommendation-item">
-      <div class="recommendation-title">
-        <span class="recommendation-index">${index + 1}.</span>
-        <div>
-          <h3>${safeTitle}</h3>
-          <span class="author">by ${safeAuthor}</span>
+      <div class="recommendation-layout">
+          <div class="recommendation-cover-container">
+            <img id="cover-${index}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+              data-title="${safeTitle}" 
+              data-author="${safeAuthor}" 
+              alt="Cover of ${safeTitle}" 
+              class="recommendation-cover loading" 
+              loading="lazy">
+          </div>
+        <div class="recommendation-content">
+          <div class="recommendation-title">
+            <span class="recommendation-index">${index + 1}.</span>
+            <div>
+              <h3>${safeTitle}</h3>
+              <span class="author">by ${safeAuthor}</span>
+            </div>
+          </div>
+          <p class="reasoning">${safeReasoning}</p>
+          ${buildRecommendationActions(rec)}
         </div>
       </div>
-      <p class="reasoning">${safeReasoning}</p>
-      ${buildRecommendationActions(rec)}
     </li>
   `;
 }
@@ -825,6 +845,7 @@ function addRecommendationToTBR(button) {
     author: decodeURIComponent(button.dataset.author || ''),
     reasoning: decodeURIComponent(button.dataset.reasoning || ''),
     amazonUrl: button.dataset.amazonUrl ? decodeURIComponent(button.dataset.amazonUrl) : undefined,
+    coverUrl: button.dataset.coverUrl ? decodeURIComponent(button.dataset.coverUrl) : undefined,
   };
   addToTBR(book);
 }
@@ -993,8 +1014,34 @@ function displayRecommendations(recommendations, elementId) {
     html += renderRecommendationMarkup(rec, index);
   });
   html += '</ol>';
-
   resultsElement.innerHTML = html;
+  
+  // Lazy load covers
+  filtered.forEach((rec, index) => {
+    fetchCoverImage(rec.title, rec.author, `cover-${index}`);
+  });
+}
+
+async function fetchCoverImage(title, author, imgId) {
+  try {
+    const response = await fetch(`${API_BASE}/books/details?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`);
+    const data = await response.json();
+    if (data.success && data.details && data.details.images && data.details.images.length > 0) {
+      const img = document.getElementById(imgId);
+      if (img) {
+        img.src = data.details.images[0].url;
+        img.classList.remove('loading');
+        
+        // Update the "Add to TBR" button's data-cover-url
+        const btn = img.closest('.recommendation-layout').querySelector('button[data-cover-url]');
+        if (btn) {
+            btn.dataset.coverUrl = data.details.images[0].url;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load cover', e);
+  }
 }
 
 function displayBlindSpotsAnalysis(analysis, elementId) {
@@ -1308,19 +1355,34 @@ function displayTBR(books, elementId) {
     const addedDate = new Date(book.addedAt).toLocaleDateString();
     html += `
       <li class="recommendation-item">
-        <div class="recommendation-title">
-          <span class="recommendation-index">${index + 1}.</span>
-          <div>
-            <h3>${safeTitle}</h3>
-            <span class="author">by ${safeAuthor}</span>
+        <div class="recommendation-layout">
+          ${book.coverUrl ? `
+            <div class="recommendation-cover-container">
+              <img src="${escapeHtml(book.coverUrl)}" alt="Cover of ${safeTitle}" class="recommendation-cover" loading="lazy">
+            </div>
+          ` : ''}
+          <div class="recommendation-content">
+            <div class="recommendation-title">
+              <span class="recommendation-index">${index + 1}.</span>
+              <div>
+                <h3>${safeTitle}</h3>
+                <span class="author">by ${safeAuthor}</span>
+              </div>
+            </div>
+            ${book.reasoning ? `<p class="reasoning">${safeReasoning}</p>` : ''}
+            <div class="recommendation-actions">
+              <button
+                class="btn btn-sm btn-primary"
+                onclick="fetchBookDetails('${safeTitle}', '${safeAuthor}', '${escapeHtml(book.amazonUrl || '')}', this)"
+              >
+                View Details
+              </button>
+              ${book.amazonUrl ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" class="amazon-link">View on Amazon →</a>` : ''}
+              <button class="btn btn-sm btn-secondary" onclick="removeFromTBR('${book.id}')">Remove</button>
+            </div>
+            <div class="tbr-meta">Added: ${addedDate}</div>
           </div>
         </div>
-        ${book.reasoning ? `<p class="reasoning">${safeReasoning}</p>` : ''}
-        <div class="recommendation-actions">
-          ${book.amazonUrl ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" class="amazon-link">View on Amazon →</a>` : ''}
-          <button class="btn btn-sm btn-secondary" onclick="removeFromTBR('${book.id}')">Remove</button>
-        </div>
-        <div class="tbr-meta">Added: ${addedDate}</div>
       </li>
     `;
   });
@@ -1400,3 +1462,104 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// Book Details Modal Functions
+async function fetchBookDetails(title, author, amazonUrl, button) {
+  const originalText = button ? button.textContent : 'View Details';
+  if (button) {
+    button.textContent = 'Opening...';
+    button.disabled = true;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/books/details?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`);
+    const data = await response.json();
+
+    if (data.success && data.details) {
+      showBookModal(data.details, amazonUrl);
+    } else {
+      showError('Could not find details for this book.');
+    }
+  } catch (error) {
+    console.error('Error fetching book details:', error);
+    showError('Failed to fetch book details.');
+  } finally {
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = false;
+    }
+  }
+}
+
+function showBookModal(book, amazonUrl) {
+  const modal = document.getElementById('book-modal');
+  
+  // Populate fields
+  document.getElementById('modal-book-title').textContent = book.title;
+  
+  const authorName = book.contributions && book.contributions[0] && book.contributions[0].author 
+    ? book.contributions[0].author.name 
+    : 'Unknown Author';
+  document.getElementById('modal-book-author').textContent = authorName;
+  
+  document.getElementById('modal-book-description').textContent = book.description || 'No description available.';
+  
+  const pages = book.pages ? `${book.pages} pages` : '';
+  const rating = book.rating ? `★ ${book.rating.toFixed(1)}` : '';
+  const year = book.release_date ? new Date(book.release_date).getFullYear() : '';
+  
+  document.getElementById('modal-book-pages').textContent = pages;
+  document.getElementById('modal-book-rating').textContent = rating;
+  document.getElementById('modal-book-year').textContent = year;
+  
+  const coverImg = document.getElementById('modal-book-cover');
+  if (book.images && book.images.length > 0) {
+    coverImg.src = book.images[0].url;
+  } else {
+    coverImg.src = ''; 
+  }
+
+  // Actions
+  const actionsContainer = document.getElementById('modal-actions');
+  actionsContainer.innerHTML = '';
+
+  if (amazonUrl) {
+    const amazonBtn = document.createElement('a');
+    amazonBtn.href = amazonUrl;
+    amazonBtn.target = '_blank';
+    amazonBtn.className = 'action-btn';
+    amazonBtn.innerHTML = `<img src="/assets/logo/amazon-logo.png" class="action-icon" alt="Amazon"> Amazon`;
+    actionsContainer.appendChild(amazonBtn);
+  }
+
+  if (book.slug) {
+    const hardcoverBtn = document.createElement('a');
+    hardcoverBtn.href = `https://hardcover.app/books/${book.slug}`;
+    hardcoverBtn.target = '_blank';
+    hardcoverBtn.className = 'action-btn';
+    hardcoverBtn.innerHTML = `<img src="/assets/logo/hardcover-logo.png" class="action-icon" alt="Hardcover"> Hardcover`;
+    actionsContainer.appendChild(hardcoverBtn);
+  }
+
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+}
+
+function closeBookModal() {
+  const modal = document.getElementById('book-modal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const bookModal = document.getElementById('book-modal');
+  if (event.target === bookModal) {
+    closeBookModal();
+  }
+  
+  const loginModal = document.getElementById('login-modal');
+  if (event.target === loginModal && isAuthenticated) {
+      hideLoginModal();
+  }
+}
