@@ -51,6 +51,7 @@ const alterColumns = [
   `ALTER TABLE users ADD COLUMN reader_profile TEXT`,
   `ALTER TABLE users ADD COLUMN reader_profile_last_update TEXT`,
   `ALTER TABLE users ADD COLUMN reader_profile_readings_count INTEGER`,
+  `ALTER TABLE tbr_books ADD COLUMN cover_url TEXT`,
 ];
 
 for (const statement of alterColumns) {
@@ -245,8 +246,8 @@ export class DatabaseService {
     const addedAt = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO tbr_books (user_id, book_id, title, author, reasoning, amazon_url, added_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tbr_books (user_id, book_id, title, author, reasoning, amazon_url, cover_url, added_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -256,6 +257,7 @@ export class DatabaseService {
       book.author,
       book.reasoning || null,
       book.amazonUrl || null,
+      book.coverUrl || null,
       addedAt
     );
 
@@ -270,7 +272,7 @@ export class DatabaseService {
    */
   static getTBRList(userId: number): TBRBook[] {
     const stmt = db.prepare(`
-      SELECT book_id, title, author, reasoning, amazon_url, added_at
+      SELECT book_id, title, author, reasoning, amazon_url, cover_url, added_at
       FROM tbr_books
       WHERE user_id = ?
       ORDER BY added_at DESC
@@ -284,6 +286,7 @@ export class DatabaseService {
       author: row.author,
       reasoning: row.reasoning || undefined,
       amazonUrl: row.amazon_url || undefined,
+      coverUrl: row.cover_url || undefined,
       addedAt: row.added_at,
     }));
   }
@@ -310,6 +313,16 @@ export class DatabaseService {
     `);
 
     stmt.run(userId);
+  }
+
+  static updateTBRBookCover(userId: number, bookId: string, coverUrl: string): void {
+    const stmt = db.prepare(`
+      UPDATE tbr_books
+      SET cover_url = ?
+      WHERE user_id = ? AND book_id = ?
+    `);
+
+    stmt.run(coverUrl, userId, bookId);
   }
 
   static updateDataSourcePreference(userId: number, preference: DataSourcePreference): void {

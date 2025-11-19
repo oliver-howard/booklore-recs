@@ -159,7 +159,10 @@ export class AIService {
    * Format user's reading history for AI context
    */
   private formatReadingHistory(readings: UserReading[]): string {
-    return readings
+    // Optimize: Limit to most recent 50 books to reduce token count and latency
+    const recentReadings = readings.slice(-50);
+    
+    return recentReadings
       .map((reading) => {
         const { book, rating, review, notes } = reading;
         let entry = `"${book.title}" by ${book.author || 'Unknown'}`;

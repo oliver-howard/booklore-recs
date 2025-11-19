@@ -189,7 +189,8 @@ async function getService(req: Request): Promise<RecommendationService> {
       user.bookloreUsername,
       user.booklorePassword,
       user.goodreadsReadings,
-      user.dataSourcePreference
+      user.dataSourcePreference,
+      hardcoverClient
     );
 
     // Only initialize (authenticate with BookLore) if credentials are configured
@@ -816,7 +817,28 @@ app.get(
       });
     }
 
-    const tbr = DatabaseService.getTBRList(req.session.userId);
+    let tbr = DatabaseService.getTBRList(req.session.userId);
+
+    // Backfill missing covers
+    const missingCovers = tbr.filter(book => !book.coverUrl);
+    if (missingCovers.length > 0) {
+      logger.info(`Backfilling covers for ${missingCovers.length} TBR books`);
+      
+      await Promise.all(missingCovers.map(async (book) => {
+        try {
+          const details = await hardcoverClient.getBookDetails(book.title, book.author);
+          if (details && details.images && details.images.length > 0) {
+            const coverUrl = details.images[0].url;
+            // Update database
+            book.coverUrl = coverUrl;
+            DatabaseService.updateTBRBookCover(req.session.userId!, book.id, coverUrl);
+          }
+        } catch (error) {
+          logger.error(`Failed to backfill cover for ${book.title}`, error as any);
+        }
+      }));
+    }
+
     res.json({ tbr });
   })
 );
@@ -832,7 +854,7 @@ app.post(
       });
     }
 
-    const { title, author, reasoning, amazonUrl } = req.body;
+    const { title, author, reasoning, amazonUrl, coverUrl } = req.body;
 
     if (!title || !author) {
       return res.status(400).json({
@@ -851,6 +873,7 @@ app.post(
         author,
         reasoning,
         amazonUrl,
+        coverUrl,
       });
 
       res.json({

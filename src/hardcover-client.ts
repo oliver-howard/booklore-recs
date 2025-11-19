@@ -42,6 +42,8 @@ export class HardcoverClient {
   private supportsFinishedAt: boolean | null;
   private static finishedAtCapability: boolean | null = null;
   private cachedUserId?: string | null;
+  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
   constructor(config: HardcoverConfig) {
     this.apiUrl = config.apiUrl || 'https://api.hardcover.app/v1/graphql';
@@ -139,6 +141,13 @@ export class HardcoverClient {
    * Search for a book by title and author
    */
   async searchBook(title: string, author: string): Promise<HardcoverBook | null> {
+    const cacheKey = `search:${title.toLowerCase()}:${author.toLowerCase()}`;
+    const cached = this.getFromCache<HardcoverBook>(cacheKey);
+    if (cached) {
+      this.log('Cache hit for search:', cacheKey);
+      return cached;
+    }
+
     this.log(`Searching for book: "${title}" by ${author}`);
 
     // Use Hardcover's search endpoint which uses Typesense
@@ -204,6 +213,7 @@ export class HardcoverClient {
       }
 
       this.log('Best match:', bestMatch);
+      this.setCache(cacheKey, bestMatch);
       return bestMatch;
     } catch (error) {
       this.log('Search error:', error);
@@ -215,6 +225,13 @@ export class HardcoverClient {
    * Get detailed book information
    */
   async getBookDetails(title: string, author: string): Promise<HardcoverBook | null> {
+    const cacheKey = `details:${title.toLowerCase()}:${author.toLowerCase()}`;
+    const cached = this.getFromCache<HardcoverBook>(cacheKey);
+    if (cached) {
+      this.log('Cache hit for details:', cacheKey);
+      return cached;
+    }
+
     this.log(`Getting details for book: "${title}" by ${author}`);
 
     const searchQuery = author ? `${title} ${author}` : title;
@@ -274,7 +291,9 @@ export class HardcoverClient {
         });
       }
 
-      return bestMatch || books[0];
+      const result = bestMatch || books[0];
+      this.setCache(cacheKey, result);
+      return result;
     } catch (error) {
       this.log('Get details error:', error);
       return null;
@@ -656,5 +675,21 @@ ${finishedAtField}          }
     this.log(`Sync complete: ${successful} successful, ${failed} failed, ${notFound} not found`);
 
     return { successful, failed, notFound, details };
+  }
+
+  private getFromCache<T>(key: string): T | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > this.CACHE_TTL) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return item.data as T;
+  }
+
+  private setCache(key: string, data: any): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
   }
 }

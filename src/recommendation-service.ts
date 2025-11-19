@@ -1,4 +1,5 @@
 import { BookLoreClient } from './booklore-client.js';
+import { HardcoverClient } from './hardcover-client.js';
 import { AIService } from './ai-service.js';
 import {
   Recommendation,
@@ -13,6 +14,7 @@ import { config } from './config.js';
 
 export class RecommendationService {
   private bookloreClient?: BookLoreClient;
+  private hardcoverClient?: HardcoverClient;
   private aiService: AIService;
   private guestReadings?: UserReading[];
   private dataSourcePreference: DataSourcePreference;
@@ -22,7 +24,8 @@ export class RecommendationService {
     bookloreUsername?: string,
     booklorePassword?: string,
     guestReadings?: UserReading[],
-    dataSourcePreference: DataSourcePreference = 'auto'
+    dataSourcePreference: DataSourcePreference = 'auto',
+    hardcoverClient?: HardcoverClient
   ) {
     if (bookloreUsername && booklorePassword) {
       this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
@@ -30,6 +33,7 @@ export class RecommendationService {
     this.guestReadings = guestReadings;
     this.dataSourcePreference = dataSourcePreference || 'auto';
     this.aiService = new AIService(aiConfig);
+    this.hardcoverClient = hardcoverClient;
   }
 
   /**
@@ -56,11 +60,25 @@ export class RecommendationService {
 
     switch (type) {
       case 'similar':
-        return this.aiService.getSimilarRecommendations(readings, tbrBooks, max);
+        const similarRecs = await this.aiService.getSimilarRecommendations(readings, tbrBooks, max);
+        return similarRecs;
       case 'contrasting':
-        return this.aiService.getContrastingRecommendations(readings, tbrBooks, max);
+        const contrastingRecs = await this.aiService.getContrastingRecommendations(readings, tbrBooks, max);
+        return contrastingRecs;
       case 'blindspots':
-        return this.aiService.analyzeReadingBlindSpots(readings);
+        const analysis = await this.aiService.analyzeReadingBlindSpots(readings);
+        // Enrich recommendations within blind spots - SKIPPED for performance (client-side fetch)
+        /*
+        if (analysis.blindSpots) {
+          analysis.blindSpots = await Promise.all(
+            analysis.blindSpots.map(async (spot) => ({
+              ...spot,
+              recommendations: await this.enrichWithCovers(spot.recommendations),
+            }))
+          );
+        }
+        */
+        return analysis;
       default:
         throw new Error(`Unknown recommendation type: ${type}`);
     }
@@ -87,7 +105,8 @@ export class RecommendationService {
     const readings = await this.getReadingsForSource(source);
     console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
 
-    return this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max);
+    const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max);
+    return recommendations;
   }
 
   /**
@@ -273,5 +292,31 @@ export class RecommendationService {
     }
 
     return this.guestReadings;
+  }
+
+  /**
+   * Enrich recommendations with cover images from Hardcover
+   */
+  private async enrichWithCovers(recommendations: Recommendation[]): Promise<Recommendation[]> {
+    if (!this.hardcoverClient) {
+      return recommendations;
+    }
+
+    console.log('Fetching cover images for recommendations...');
+    const enriched = await Promise.all(
+      recommendations.map(async (rec) => {
+        try {
+          const book = await this.hardcoverClient!.getBookDetails(rec.title, rec.author);
+          if (book && book.images && book.images.length > 0) {
+            return { ...rec, coverUrl: book.images[0].url };
+          }
+        } catch (error) {
+          console.error(`Failed to fetch cover for ${rec.title}:`, error);
+        }
+        return rec;
+      })
+    );
+
+    return enriched;
   }
 }

@@ -42,6 +42,7 @@ export const RecommendationSchema = z.object({
   reasoning: z.string(),
   estimatedMatch: z.number().min(0).max(100).optional(),
   amazonUrl: z.string().optional(), // Amazon search/purchase link
+  coverUrl: z.string().optional(),
 });
 
 export const BlindSpotSchema = z.object({
@@ -105,5 +106,6 @@ export interface TBRBook {
   author: string;
   reasoning?: string;
   amazonUrl?: string;
+  coverUrl?: string;
   addedAt: string;
 }
