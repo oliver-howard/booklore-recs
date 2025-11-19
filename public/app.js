@@ -16,6 +16,16 @@ let adminUsers = [];
 let heroPreviewBook = null;
 let hasLoadedTBR = false;
 
+function getChartColors() {
+  const styles = getComputedStyle(document.documentElement);
+  const axisText =
+    styles.getPropertyValue('--text-primary')?.trim() ||
+    styles.getPropertyValue('--text-secondary')?.trim() ||
+    '#f6f7ff';
+  const axisLine = styles.getPropertyValue('--border-color')?.trim() || 'rgba(255,255,255,0.3)';
+  return { axisText, axisLine };
+}
+
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
     .replace(/[^a-z0-9]/g, '-')
@@ -1111,17 +1121,23 @@ function displayStats(stats, elementId) {
     profileContainer.innerHTML = `
       <div class="profile-card">
         <div class="profile-header">
-          <div class="profile-icon">📚</div>
+          <div class="profile-icon">
+            <span class="profile-icon-emoji">📚</span>
+          </div>
           <div class="profile-title-group">
-            <div class="profile-label">Your Reader Persona</div>
+            <p class="profile-label">Your Reader Persona</p>
             <h3 class="profile-title">${stats.readerProfile.title}</h3>
           </div>
+          <span class="profile-chip">AI insight</span>
         </div>
-        <div class="profile-content">
+        <div class="profile-body">
           <p class="profile-summary">${stats.readerProfile.summary}</p>
           <div class="profile-fun-fact">
-            <span class="fun-fact-icon">💡</span>
-            <span class="fun-fact-text">${stats.readerProfile.funFact}</span>
+            <div class="profile-fun-icon">💡</div>
+            <div>
+              <p class="profile-fun-label">Signature quirk</p>
+              <p class="profile-fun-text">${stats.readerProfile.funFact}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1187,6 +1203,7 @@ function renderBarChart(data, selector, label) {
   const margin = { top: 20, right: 30, bottom: 40, left: 120 };
   const width = 500 - margin.left - margin.right;
   const height = 300 - margin.top - margin.bottom;
+  const { axisText, axisLine } = getChartColors();
 
   // Append SVG
   const svg = d3.select(selector)
@@ -1201,12 +1218,20 @@ function renderBarChart(data, selector, label) {
     .domain([0, d3.max(data, d => d.count)])
     .range([0, width]);
   
-  svg.append("g")
+  const xAxis = svg.append("g")
     .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x).ticks(5))
-    .selectAll("text")
+    .call(d3.axisBottom(x).ticks(5));
+
+  xAxis.selectAll("path")
+    .attr("stroke", axisLine);
+
+  xAxis.selectAll("line")
+    .attr("stroke", axisLine);
+
+  xAxis.selectAll("text")
     .attr("transform", "translate(-10,0)rotate(-45)")
-    .style("text-anchor", "end");
+    .style("text-anchor", "end")
+    .style("fill", axisText);
 
   // Y axis
   const y = d3.scaleBand()
@@ -1214,10 +1239,18 @@ function renderBarChart(data, selector, label) {
     .domain(data.map(d => d.name))
     .padding(0.2);
   
-  svg.append("g")
-    .call(d3.axisLeft(y))
-    .selectAll("text")
-    .style("font-size", "12px");
+  const yAxis = svg.append("g")
+    .call(d3.axisLeft(y));
+
+  yAxis.selectAll("path")
+    .attr("stroke", axisLine);
+
+  yAxis.selectAll("line")
+    .attr("stroke", axisLine);
+
+  yAxis.selectAll("text")
+    .style("font-size", "12px")
+    .style("fill", axisText);
 
   // Bars
   svg.selectAll("myRect")
@@ -1227,8 +1260,25 @@ function renderBarChart(data, selector, label) {
     .attr("y", d => y(d.name))
     .attr("width", d => x(d.count))
     .attr("height", y.bandwidth())
-    .attr("fill", "var(--primary)")
+    .attr("fill", "url(#bar-gradient)")
     .style("rx", 4); // Rounded corners
+
+  // Gradient definition
+  const defs = svg.append("defs");
+  const gradient = defs.append("linearGradient")
+    .attr("id", "bar-gradient")
+    .attr("x1", "0%")
+    .attr("x2", "100%")
+    .attr("y1", "0%")
+    .attr("y2", "0%");
+
+  gradient.append("stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "var(--accent)");
+
+  gradient.append("stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "var(--accent-strong)");
 
   // Labels on bars
   svg.selectAll("myLabel")
@@ -1238,7 +1288,7 @@ function renderBarChart(data, selector, label) {
     .attr("y", d => y(d.name) + y.bandwidth() / 2)
     .attr("dy", "0.35em")
     .text(d => d.count)
-    .style("fill", "var(--text)")
+    .style("fill", axisText)
     .style("font-size", "12px");
 }
 

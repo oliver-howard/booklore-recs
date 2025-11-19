@@ -861,31 +861,71 @@ textarea {
 .reader-profile {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
 }
 
 .profile-card {
-  padding: 24px;
-  border-radius: 24px;
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(125deg, rgba(19, 28, 64, 0.9), rgba(51, 21, 74, 0.9));
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='light'] .profile-card {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: linear-gradient(125deg, rgba(252, 252, 255, 0.95), rgba(229, 232, 255, 0.9));
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.15);
+}
+
+.profile-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 15% 20%, rgba(123, 123, 255, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(255, 153, 204, 0.3), transparent 55%);
+  opacity: 0.6;
+}
+
+:root[data-theme='light'] .profile-card::before {
+  background: radial-gradient(circle at 20% 15%, rgba(147, 197, 253, 0.5), transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(251, 207, 232, 0.5), transparent 55%);
+}
+
+.profile-card > * {
+  position: relative;
 }
 
 .profile-header {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   align-items: center;
 }
 
 .profile-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: var(--accent-soft);
+  width: 70px;
+  height: 70px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] .profile-icon {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.07);
+}
+
+.profile-icon-emoji {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
 }
 
 .profile-title {
@@ -893,17 +933,95 @@ textarea {
   margin-top: 4px;
 }
 
+.profile-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.profile-chip {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='light'] .profile-chip {
+  border-color: rgba(15, 23, 42, 0.18);
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.profile-body {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .profile-summary {
-  margin-top: 16px;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+:root[data-theme='light'] .profile-summary {
+  color: rgba(15, 23, 42, 0.75);
 }
 
 .profile-fun-fact {
-  margin-top: 18px;
   display: flex;
-  gap: 10px;
+  gap: 14px;
   align-items: center;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme='light'] .profile-fun-fact {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.profile-fun-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+:root[data-theme='light'] .profile-fun-icon {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.profile-fun-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme='light'] .profile-fun-label {
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.profile-fun-text {
   color: var(--info);
+  margin-top: 4px;
+}
+
+:root[data-theme='light'] .profile-fun-text {
+  color: #0f4c81;
 }
 
 .stats-container {
@@ -952,6 +1070,21 @@ textarea {
   border-radius: 24px;
   border: 1px solid var(--border-color);
   background: rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at top left, rgba(123, 123, 255, 0.15), transparent 55%);
+  pointer-events: none;
+}
+
+.chart {
+  position: relative;
 }
 
 .book-modal-content {
