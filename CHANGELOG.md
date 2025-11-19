@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.6.1...book-rex-v1.7.0) (2025-11-19)
+
+
+### Features
+
+* Add Amazon and Hardcover action buttons to the book details modal. ([c4a67cb](https://github.com/oliver-howard/book-rex/commit/c4a67cbf9c25f7f2434ef55704e9da699cceb1bd))
+* Add book details modal with data fetched from the Hardcover API. ([ece288d](https://github.com/oliver-howard/book-rex/commit/ece288d3e9e05e1460deb7c92375ba758b305cb1))
+* Display book cover images ([a4a3d83](https://github.com/oliver-howard/book-rex/commit/a4a3d8379e271e6b8c9098c3c7a81a7832138bca))
+
 ## [1.6.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.6.0...book-rex-v1.6.1) (2025-11-18)
 
 
