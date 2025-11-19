@@ -247,6 +247,7 @@ export class HardcoverClient {
         const book = hit.document;
         return {
           id: parseInt(book.id),
+          slug: book.slug,
           title: book.title,
           description: book.description,
           release_date: book.release_date,

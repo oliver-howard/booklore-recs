@@ -64,6 +64,7 @@ export type ReadingAnalysis = z.infer<typeof ReadingAnalysisSchema>;
 
 export interface HardcoverBook {
   id: number;
+  slug?: string;
   title: string;
   description?: string;
   release_date?: string;

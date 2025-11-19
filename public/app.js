@@ -782,7 +782,7 @@ function buildRecommendationActions(rec) {
     <div class="recommendation-actions">
       <button
         class="btn btn-sm btn-primary"
-        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}')"
+        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}', '${escapeHtml(rec.amazonUrl || '')}', this)"
       >
         View Details
       </button>
@@ -1408,26 +1408,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Book Details Modal Functions
-async function fetchBookDetails(title, author) {
-  showLoading('Fetching book details...');
+async function fetchBookDetails(title, author, amazonUrl, button) {
+  const originalText = button ? button.textContent : 'View Details';
+  if (button) {
+    button.textContent = 'Opening...';
+    button.disabled = true;
+  }
+
   try {
     const response = await fetch(`${API_BASE}/books/details?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}`);
     const data = await response.json();
-    hideLoading();
 
     if (data.success && data.details) {
-      showBookModal(data.details);
+      showBookModal(data.details, amazonUrl);
     } else {
       showError('Could not find details for this book.');
     }
   } catch (error) {
-    hideLoading();
     console.error('Error fetching book details:', error);
     showError('Failed to fetch book details.');
+  } finally {
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = false;
+    }
   }
 }
 
-function showBookModal(book) {
+function showBookModal(book, amazonUrl) {
   const modal = document.getElementById('book-modal');
   
   // Populate fields
@@ -1453,6 +1461,28 @@ function showBookModal(book) {
     coverImg.src = book.images[0].url;
   } else {
     coverImg.src = ''; 
+  }
+
+  // Actions
+  const actionsContainer = document.getElementById('modal-actions');
+  actionsContainer.innerHTML = '';
+
+  if (amazonUrl) {
+    const amazonBtn = document.createElement('a');
+    amazonBtn.href = amazonUrl;
+    amazonBtn.target = '_blank';
+    amazonBtn.className = 'action-btn';
+    amazonBtn.innerHTML = `<img src="/assets/logo/amazon-logo.png" class="action-icon" alt="Amazon"> Amazon`;
+    actionsContainer.appendChild(amazonBtn);
+  }
+
+  if (book.slug) {
+    const hardcoverBtn = document.createElement('a');
+    hardcoverBtn.href = `https://hardcover.app/books/${book.slug}`;
+    hardcoverBtn.target = '_blank';
+    hardcoverBtn.className = 'action-btn';
+    hardcoverBtn.innerHTML = `<img src="/assets/logo/hardcover-logo.png" class="action-icon" alt="Hardcover"> Hardcover`;
+    actionsContainer.appendChild(hardcoverBtn);
   }
 
   modal.classList.add('show');
