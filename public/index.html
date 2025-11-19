@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,7 +9,7 @@
   <body>
     <!-- Login Modal -->
     <div id="login-modal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content glass-panel">
         <h2>Welcome to BookRex</h2>
         <p id="auth-modal-subtitle" class="modal-subtitle">Log in to your account</p>
 
@@ -56,162 +56,169 @@
       </div>
     </div>
 
-    <div class="container">
-      <div class="top-nav">
+    <div class="app-frame">
+      <aside class="sidebar glass-panel">
         <div class="nav-brand">
-          <img
-            src="/assets/logo/light-theme-logo.png"
-            alt="BookRex"
-            class="mini-logo light-logo"
-          />
-          <img
-            src="/assets/logo/dark-theme-logo.png"
-            alt="BookRex"
-            class="mini-logo dark-logo"
-          />
-          <span>BookRex</span>
-        </div>
-        <div id="user-info" class="user-info hidden">
-          <span id="username-display"></span>
-          <a href="/stats" class="nav-pill" style="text-decoration: none;">Stats</a>
-          <a href="/settings" class="nav-pill" style="text-decoration: none;">Settings</a>
-          <button class="nav-pill" onclick="handleLogout()">Logout</button>
-        </div>
-      </div>
-
-      <header class="hero">
-        <div class="hero-content">
-          <div class="hero-text">
-            <h1>BookRex</h1>
-            <p class="hero-tagline">
-              Personalized book recommendations powered by AI. Connect your reading history and
-              discover fresh picks.
-            </p>
-            <button class="btn btn-primary hero-cta" onclick="goToSimilarRecommendations()">
-              Get my next book
-            </button>
+          <div class="brand-logos">
+            <img src="/assets/logo/light-theme-logo.png" alt="BookRex" class="mini-logo light-logo" />
+            <img src="/assets/logo/dark-theme-logo.png" alt="BookRex" class="mini-logo dark-logo" />
           </div>
-          <div class="hero-visual">
-            <div class="mascot-card">
-              <img
-                src="/assets/logo/light-theme-logo.png"
-                alt="BookRex Mascot"
-                class="mascot light-logo"
-              />
-              <img
-                src="/assets/logo/dark-theme-logo.png"
-                alt="BookRex Mascot"
-                class="mascot dark-logo"
-              />
+          <div class="brand-copy">
+            <span>BookRex</span>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <a href="/" class="sidebar-link active">Dashboard</a>
+          <a href="/stats" class="sidebar-link">Insights</a>
+          <a href="/settings" class="sidebar-link">Settings</a>
+        </nav>
+        <div class="sidebar-divider"></div>
+        <div id="user-info" class="user-info hidden">
+          <span id="username-display" class="user-handle"></span>
+          <div class="user-controls">
+            <button class="nav-pill" onclick="handleLogout()">Logout</button>
+          </div>
+        </div>
+        <div class="sidebar-footer">
+          <p class="sidebar-hint">Dial in your vibe, explore the stacks, keep your queue curated.</p>
+          <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="theme-icon" id="theme-icon">🌙</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="content-area">
+        <header class="hero hero-panel glass-panel">
+          <div class="hero-content">
+            <div class="hero-text">
+              <p class="hero-kicker">BookRex</p>
+              <h1>AI Powered Book Recommendations</h1>
+              <p class="hero-tagline">
+                Plug in BookLore or Goodreads, let BookRex guide you to your next read.
+              </p>
+              <div class="hero-actions">
+                <button class="btn btn-primary hero-cta" onclick="goToSimilarRecommendations()">
+                  Get my next book
+                </button>
+                <button class="btn btn-ghost" onclick="switchTab('tbr')">View my TBR</button>
+              </div>
             </div>
-            <div class="preview-card hidden" id="hero-preview-card">
-              <p class="preview-label">Up next</p>
+            <div class="hero-preview-panel glass-panel hidden" id="hero-preview-card">
+              <div class="preview-header">
+                <p class="preview-label">Up next</p>
+                <span class="preview-pill">Auto curated</span>
+              </div>
               <h3 class="preview-title">
                 <a href="#" target="_blank" id="hero-preview-title" class="preview-link">TBR is empty</a>
               </h3>
               <p class="preview-author" id="hero-preview-author"></p>
-              <p class="preview-copy" id="hero-preview-reasoning">
-                Add a book to your TBR to see it featured here.
-              </p>
+              <button class="btn btn-secondary btn-sm hero-preview-action" id="hero-preview-button" onclick="openHeroPreviewDetails()" disabled>
+                View details
+              </button>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <p>Loading recommendations...</p>
-      </div>
-
-      <div id="error" class="error hidden"></div>
-      <div id="notification" class="notification hidden"></div>
-
-      <nav class="tabs">
-        <button class="tab-button active" data-tab="similar">Similar Books</button>
-        <button class="tab-button" data-tab="contrasting">Contrasting</button>
-        <button class="tab-button" data-tab="blindspots">Blind Spots</button>
-        <button class="tab-button" data-tab="custom">Custom</button>
-        <button class="tab-button" data-tab="tbr">To Be Read</button>
-      </nav>
-
-      <div class="tab-content">
-        <!-- Similar Recommendations -->
-        <div id="similar-tab" class="tab-pane active">
-          <div class="section-header">
-            <h2>Similar Book Recommendations</h2>
-            <p>Books similar to what you've enjoyed</p>
-          </div>
-          <button class="btn btn-primary" onclick="getSimilarRecommendations()">
-            Get Recommendations
-          </button>
-          <div id="similar-results" class="results"></div>
+        <div id="notification" class="notification hidden"></div>
+        <div id="error" class="error-banner hidden"></div>
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Loading recommendations...</p>
         </div>
 
-        <!-- Contrasting Recommendations -->
-        <div id="contrasting-tab" class="tab-pane">
-          <div class="section-header">
-            <h2>Contrasting Perspectives</h2>
-            <p>Books that challenge your usual reading patterns</p>
+        <section class="panel glass-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Explore the stacks</p>
+              <h2>Modes &amp; blends</h2>
+            </div>
+            <p class="panel-copy">Switch tabs to summon similar reads, blind spots, or fully custom prompts.</p>
           </div>
-          <button class="btn btn-primary" onclick="getContrastingRecommendations()">
-            Get Recommendations
-          </button>
-          <div id="contrasting-results" class="results"></div>
-        </div>
+          <nav class="tabs">
+            <button class="tab-button active" data-tab="similar">Similar Books</button>
+            <button class="tab-button" data-tab="contrasting">Contrasting</button>
+            <button class="tab-button" data-tab="blindspots">Blind Spots</button>
+            <button class="tab-button" data-tab="custom">Custom</button>
+            <button class="tab-button" data-tab="tbr">To Be Read</button>
+          </nav>
 
-        <!-- Blind Spots -->
-        <div id="blindspots-tab" class="tab-pane">
-          <div class="section-header">
-            <h2>Reading Blind Spots</h2>
-            <p>Discover gaps in your reading history</p>
-          </div>
-          <button class="btn btn-primary" onclick="getBlindspots()">
-            Analyze Blind Spots
-          </button>
-          <div id="blindspots-results" class="results"></div>
-        </div>
+          <div class="tab-content">
+            <!-- Similar Recommendations -->
+            <div id="similar-tab" class="tab-pane active">
+              <div class="section-header">
+                <h3>Similar Book Recommendations</h3>
+                <p>Books similar to what you've enjoyed</p>
+              </div>
+              <button class="btn btn-primary" onclick="getSimilarRecommendations()">
+                Get Recommendations
+              </button>
+              <div id="similar-results" class="results"></div>
+            </div>
 
-        <!-- Custom Recommendations -->
-        <div id="custom-tab" class="tab-pane">
-          <div class="section-header">
-            <h2>Custom Recommendations</h2>
-            <p>Get recommendations based on your specific criteria</p>
-          </div>
-          <div class="form-group">
-            <label for="custom-criteria">What are you looking for?</label>
-            <textarea
-              id="custom-criteria"
-              rows="3"
-              placeholder="e.g., science fiction with strong female protagonists, or books with the same vibe as 'Project Hail Mary'"
-            ></textarea>
-          </div>
-          <button class="btn btn-primary" onclick="getCustomRecommendations()">
-            Get Recommendations
-          </button>
-          <div id="custom-results" class="results"></div>
-        </div>
+            <!-- Contrasting Recommendations -->
+            <div id="contrasting-tab" class="tab-pane">
+              <div class="section-header">
+                <h3>Contrasting Perspectives</h3>
+                <p>Books that challenge your usual reading patterns</p>
+              </div>
+              <button class="btn btn-primary" onclick="getContrastingRecommendations()">
+                Get Recommendations
+              </button>
+              <div id="contrasting-results" class="results"></div>
+            </div>
 
-        <!-- To Be Read -->
-        <div id="tbr-tab" class="tab-pane">
-          <div class="section-header">
-            <h2>To Be Read List</h2>
-            <p>Books you want to read saved from recommendations</p>
+            <!-- Blind Spots -->
+            <div id="blindspots-tab" class="tab-pane">
+              <div class="section-header">
+                <h3>Reading Blind Spots</h3>
+                <p>Discover gaps in your reading history</p>
+              </div>
+              <button class="btn btn-primary" onclick="getBlindspots()">
+                Analyze Blind Spots
+              </button>
+              <div id="blindspots-results" class="results"></div>
+            </div>
+
+            <!-- Custom Recommendations -->
+            <div id="custom-tab" class="tab-pane">
+              <div class="section-header">
+                <h3>Custom Recommendations</h3>
+                <p>Get recommendations based on your specific criteria</p>
+              </div>
+              <div class="form-group">
+                <label for="custom-criteria">What are you looking for?</label>
+                <textarea
+                  id="custom-criteria"
+                  rows="3"
+                  placeholder="e.g., science fiction with strong female protagonists, or books with the same vibe as 'Project Hail Mary'"
+                ></textarea>
+              </div>
+              <button class="btn btn-primary" onclick="getCustomRecommendations()">
+                Get Recommendations
+              </button>
+              <div id="custom-results" class="results"></div>
+            </div>
+
+            <!-- To Be Read -->
+            <div id="tbr-tab" class="tab-pane">
+              <div class="section-header">
+                <h3>To Be Read List</h3>
+                <p>Books you want to read saved from recommendations</p>
+              </div>
+              <div class="tab-actions">
+                <button class="btn btn-primary" onclick="loadTBR()">Refresh List</button>
+                <button class="btn btn-secondary" onclick="clearTBR()">Clear All</button>
+              </div>
+              <div id="tbr-results" class="results"></div>
+            </div>
           </div>
-          <button class="btn btn-primary" onclick="loadTBR()">Refresh List</button>
-          <button class="btn btn-secondary" onclick="clearTBR()">Clear All</button>
-          <div id="tbr-results" class="results"></div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
-
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-      <span class="theme-icon" id="theme-icon">🌙</span>
-    </button>
 
     <!-- Book Details Modal -->
     <div id="book-modal" class="modal">
-      <div class="modal-content book-modal-content">
+      <div class="modal-content book-modal-content glass-panel">
         <span class="close-modal" onclick="closeBookModal()">&times;</span>
         <div id="book-modal-body">
           <div class="book-modal-header">

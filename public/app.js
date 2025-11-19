@@ -13,6 +13,7 @@ let tbrCache = [];
 let dataSourcePreference = 'auto';
 let canToggleDataSource = false;
 let adminUsers = [];
+let heroPreviewBook = null;
 
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
@@ -61,6 +62,7 @@ function clearAppState() {
   dataSourcePreference = 'auto';
   canToggleDataSource = false;
   isAdmin = false;
+  heroPreviewBook = null;
   updateDataSourceToggle();
   updateHeroPreviewCard();
 }
@@ -787,11 +789,6 @@ function buildRecommendationActions(rec) {
       >
         View Details
       </button>
-      ${rec.amazonUrl ? `
-        <a href="${escapeHtml(rec.amazonUrl)}" target="_blank" class="amazon-link">
-          View on Amazon →
-        </a>
-      ` : ''}
       <button
         class="btn btn-sm btn-secondary"
         data-title="${titleData}"
@@ -1377,7 +1374,6 @@ function displayTBR(books, elementId) {
               >
                 View Details
               </button>
-              ${book.amazonUrl ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" class="amazon-link">View on Amazon →</a>` : ''}
               <button class="btn btn-sm btn-secondary" onclick="removeFromTBR('${book.id}')">Remove</button>
             </div>
             <div class="tbr-meta">Added: ${addedDate}</div>
@@ -1396,22 +1392,25 @@ function updateHeroPreviewCard() {
   const card = document.getElementById('hero-preview-card');
   const titleEl = document.getElementById('hero-preview-title');
   const authorEl = document.getElementById('hero-preview-author');
-  const reasoningEl = document.getElementById('hero-preview-reasoning');
+  const buttonEl = document.getElementById('hero-preview-button');
 
-  if (!card || !titleEl || !authorEl || !reasoningEl) {
+  if (!card || !titleEl || !authorEl || !buttonEl) {
     return;
   }
 
   if (!tbrCache || tbrCache.length === 0) {
+    heroPreviewBook = null;
     card.classList.add('hidden');
     titleEl.textContent = 'TBR is empty';
+    titleEl.removeAttribute('href');
     authorEl.textContent = '';
-    reasoningEl.textContent = 'Add a book to your TBR to see it featured here.';
+    buttonEl.disabled = true;
     return;
   }
 
   const index = Math.floor(Math.random() * tbrCache.length);
   const topBook = tbrCache[index];
+  heroPreviewBook = topBook;
   card.classList.remove('hidden');
   titleEl.textContent = topBook.title || 'Upcoming book';
   if (topBook.amazonUrl) {
@@ -1420,8 +1419,21 @@ function updateHeroPreviewCard() {
     titleEl.removeAttribute('href');
   }
   authorEl.textContent = topBook.author ? `by ${topBook.author}` : '';
-  reasoningEl.textContent =
-    topBook.reasoning || 'Recently added to your TBR. Start reading it next!';
+  buttonEl.disabled = false;
+}
+
+function openHeroPreviewDetails() {
+  const button = document.getElementById('hero-preview-button');
+  if (!heroPreviewBook || !button) {
+    return;
+  }
+
+  fetchBookDetails(
+    heroPreviewBook.title || '',
+    heroPreviewBook.author || 'Unknown',
+    heroPreviewBook.amazonUrl || '',
+    button
+  );
 }
 
 // Theme toggle
