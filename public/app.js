@@ -14,6 +14,7 @@ let dataSourcePreference = 'auto';
 let canToggleDataSource = false;
 let adminUsers = [];
 let heroPreviewBook = null;
+let hasLoadedTBR = false;
 
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
@@ -63,6 +64,7 @@ function clearAppState() {
   canToggleDataSource = false;
   isAdmin = false;
   heroPreviewBook = null;
+  hasLoadedTBR = false;
   updateDataSourceToggle();
   updateHeroPreviewCard();
 }
@@ -93,6 +95,10 @@ async function checkAuthStatus() {
       }
       
       try {
+        if (!hasLoadedTBR || isNewlyAuthenticated) {
+          loadTBR(false, true);
+        }
+
         // Page-specific initialization
         const path = window.location.pathname;
         if (path === '/settings') {
@@ -115,8 +121,9 @@ async function checkAuthStatus() {
         } else {
           // Home page
           updateUIForMode();
-          if (isNewlyAuthenticated) {
-            loadTBR();
+          const isHome = path === '/' || path === '/index.html';
+          if (isHome && hasLoadedTBR) {
+            updateHeroPreviewCard();
           }
         }
       } catch (uiError) {
@@ -738,7 +745,7 @@ function switchTab(tabName) {
   document.getElementById(`${tabName}-tab`)?.classList.add('active');
 
   if (tabName === 'tbr') {
-    loadTBR();
+    loadTBR(true, false);
   }
 }
 
@@ -1236,26 +1243,42 @@ function renderBarChart(data, selector, label) {
 }
 
 // TBR functions
-async function loadTBR() {
-  showLoading('Loading your TBR list...', 'tbr-results');
+async function loadTBR(showLoader = true, refreshHero = true) {
+  if (showLoader) {
+    showLoading('Loading your TBR list...', 'tbr-results');
+  }
   try {
     const response = await fetch(`${API_BASE}/tbr`);
     const data = await response.json();
-    hideLoading();
+    if (showLoader) {
+      hideLoading();
+    }
 
     if (data.tbr) {
+      hasLoadedTBR = true;
       tbrCache = data.tbr;
       displayTBR(data.tbr, 'tbr-results');
-      updateHeroPreviewCard();
+      if (refreshHero) {
+        updateHeroPreviewCard();
+      }
     } else {
       tbrCache = [];
-      updateHeroPreviewCard();
-      showError('Failed to load TBR list');
+      if (refreshHero) {
+        updateHeroPreviewCard();
+      }
+      if (showLoader) {
+        showError('Failed to load TBR list');
+      }
     }
   } catch (error) {
-    hideLoading();
+    hasLoadedTBR = false;
+    if (showLoader) {
+      hideLoading();
+    }
     console.error('Error loading TBR:', error);
-    showError('Failed to load TBR list. Please try again.');
+    if (showLoader) {
+      showError('Failed to load TBR list. Please try again.');
+    }
   }
 }
 
@@ -1340,7 +1363,6 @@ function displayTBR(books, elementId) {
 
   if (books.length === 0) {
     resultsElement.innerHTML = '<p class="no-results">Your TBR list is empty. Add books from recommendations!</p>';
-    updateHeroPreviewCard();
     return;
   }
 
@@ -1385,7 +1407,6 @@ function displayTBR(books, elementId) {
   html += '</ol>';
 
   resultsElement.innerHTML = html;
-  updateHeroPreviewCard();
 }
 
 function updateHeroPreviewCard() {
