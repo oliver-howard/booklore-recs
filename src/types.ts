@@ -99,6 +99,9 @@ export type RecommendationType = 'similar' | 'contrasting' | 'blindspots';
 
 export type DataSourcePreference = 'auto' | 'booklore' | 'goodreads';
 
+// Progress tracking for SSE
+export type ProgressCallback = (stage: string, percent: number, message: string) => void;
+
 // To Be Read (TBR) Types
 export interface TBRBook {
   id: string;

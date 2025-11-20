@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading, TBRBook } from './types.js';
+import { AIConfig, AIProvider, Recommendation, ReadingAnalysis, UserReading, TBRBook, ProgressCallback } from './types.js';
 import { config } from './config.js';
 import { getAmazonAffiliateLink, getAmazonSearchUrl } from './utils.js';
 
@@ -156,11 +156,11 @@ export class AIService {
   }
 
   /**
-   * Format user's reading history for AI context
+   * Format user's reading history for AI context (detailed)
    */
   private formatReadingHistory(readings: UserReading[]): string {
-    // Optimize: Limit to most recent 50 books to reduce token count and latency
-    const recentReadings = readings.slice(-50);
+    // Optimize: Limit to most recent 100 books for detailed context
+    const recentReadings = readings.slice(-100);
     
     return recentReadings
       .map((reading) => {
@@ -189,6 +189,23 @@ export class AIService {
   }
 
   /**
+   * Format exclusion list of ALL books user has read (simple title + author)
+   * This is used to prevent the AI from recommending books already in their library
+   */
+  private formatExclusionList(readings: UserReading[]): string {
+    if (readings.length === 0) {
+      return 'None';
+    }
+
+    // Create a simple list of "Title" by Author for all books
+    const bookList = readings
+      .map((reading) => `"${reading.book.title}" by ${reading.book.author || 'Unknown'}`)
+      .join(', ');
+
+    return bookList;
+  }
+
+  /**
    * Add Amazon search URLs to recommendations
    */
   private addAmazonLinks(recommendations: Recommendation[]): Recommendation[] {
@@ -214,7 +231,8 @@ export class AIService {
   async getSimilarRecommendations(
     userReadings: UserReading[],
     tbrBooks: TBRBook[] = [],
-    maxRecommendations = 5
+    maxRecommendations = 5,
+    onProgress?: ProgressCallback
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert. Based on the user's reading history with their ratings, notes, and reviews, suggest similar books that they might enjoy. Consider the themes, writing style, genres, and subject matter. Pay special attention to highly-rated books, user notes (which reveal what they liked/disliked), and reviews.
 
@@ -233,10 +251,16 @@ Important:
 - Provide exactly ${maxRecommendations} recommendations
 - Do not recommend books already in the user's reading history or currently on their TBR list`;
 
+    onProgress?.('preparing', 20, 'Preparing recommendation prompt...');
+    
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `Here is the user's detailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
+    onProgress?.('analyzing', 60, 'AI is analyzing your reading patterns...');
     const response = await this.generateCompletion(systemMessage, userMessage);
+    
+    onProgress?.('finalizing', 90, 'Finalizing recommendations...');
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
     return this.addAmazonLinks(recommendations);
   }
@@ -247,7 +271,8 @@ Important:
   async getContrastingRecommendations(
     userReadings: UserReading[],
     tbrBooks: TBRBook[] = [],
-    maxRecommendations = 5
+    maxRecommendations = 5,
+    onProgress?: ProgressCallback
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert specializing in diverse perspectives. Based on the user's reading history with their ratings, notes, and reviews, suggest books that present contrasting perspectives, challenge their current assumptions, or offer opposing ideologies and viewpoints. Pay attention to their notes and reviews to understand their current worldview.
 
@@ -269,10 +294,16 @@ Important:
 - Do not recommend books already in the user's reading history or currently in their TBR list
 - Focus on intellectual opposition and alternative frameworks`;
 
+    onProgress?.('preparing', 20, 'Preparing recommendation prompt...');
+    
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `Here is the user's reading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `Here is the user's detailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
+    onProgress?.('analyzing', 60, 'AI is finding contrasting perspectives...');
     const response = await this.generateCompletion(systemMessage, userMessage);
+    
+    onProgress?.('finalizing', 90, 'Finalizing recommendations...');
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
     return this.addAmazonLinks(recommendations);
   }
@@ -281,7 +312,8 @@ Important:
    * Analyze reading blind spots
    */
   async analyzeReadingBlindSpots(
-    userReadings: UserReading[]
+    userReadings: UserReading[],
+    onProgress?: ProgressCallback
   ): Promise<ReadingAnalysis> {
     const systemMessage = `You are a reading analyst. Analyze the user's reading history with their ratings, notes, and reviews to identify patterns and potential blind spots in their book selection. User notes and reviews provide valuable insight into their preferences and biases.
 
@@ -309,11 +341,18 @@ Important:
 - Use plain text only (no markdown, no special characters, no em dashes)
 - Identify 3-5 blind spots with 2-3 recommendations each
 - List 5-7 observable patterns in their reading habits
-- Suggest 5-7 topics they might be interested in exploring`;
+- Suggest 5-7 topics they might be interested in exploring
+- DO NOT recommend any books the user has already read`;
 
-    const userMessage = `Analyze this reading history:\n\n${this.formatReadingHistory(userReadings)}`;
+    onProgress?.('preparing', 20, 'Preparing analysis prompt...');
+    
+    const exclusionList = this.formatExclusionList(userReadings);
+    const userMessage = `Analyze this reading history (most recent ${Math.min(100, userReadings.length)} books shown in detail):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}`;
 
+    onProgress?.('analyzing', 60, 'AI is analyzing your reading patterns...');
     const response = await this.generateCompletion(systemMessage, userMessage);
+    
+    onProgress?.('finalizing', 90, 'Finalizing blind spots analysis...');
     const analysis = this.cleanAndParseJSON<ReadingAnalysis>(response);
 
     // Add Amazon links to blind spot recommendations
@@ -332,7 +371,8 @@ Important:
     userReadings: UserReading[],
     criteria: string,
     tbrBooks: TBRBook[] = [],
-    maxRecommendations = 5
+    maxRecommendations = 5,
+    onProgress?: ProgressCallback
   ): Promise<Recommendation[]> {
     const systemMessage = `You are a book recommendation expert. Based on the user's reading history with their ratings, notes, and reviews, and the specific criteria they've provided, suggest books that match their request. Pay attention to their notes and reviews to understand their preferences.
 
@@ -351,10 +391,16 @@ Important:
 - Provide exactly ${maxRecommendations} recommendations
 - Do not recommend books already in the user's reading history or on their TBR list`;
 
+    onProgress?.('preparing', 20, 'Preparing custom recommendation prompt...');
+    
+    const exclusionList = this.formatExclusionList(userReadings);
     const tbrSection = this.formatTBRList(tbrBooks);
-    const userMessage = `User's criteria: ${criteria}\n\nReading history:\n\n${this.formatReadingHistory(userReadings)}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
+    const userMessage = `User's criteria: ${criteria}\n\nDetailed reading history (most recent ${Math.min(100, userReadings.length)} books):\n\n${this.formatReadingHistory(userReadings)}\n\nBooks the user has ALREADY READ (never recommend these - ${userReadings.length} total):\n${exclusionList}\n\nBooks already on their TBR list (avoid recommending these):\n${tbrSection}`;
 
+    onProgress?.('analyzing', 60, 'AI is generating custom recommendations...');
     const response = await this.generateCompletion(systemMessage, userMessage);
+    
+    onProgress?.('finalizing', 90, 'Finalizing recommendations...');
     const recommendations = this.cleanAndParseJSON<Recommendation[]>(response);
     return this.addAmazonLinks(recommendations);
   }

@@ -13,6 +13,18 @@ let tbrCache = [];
 let dataSourcePreference = 'auto';
 let canToggleDataSource = false;
 let adminUsers = [];
+let heroPreviewBook = null;
+let hasLoadedTBR = false;
+
+function getChartColors() {
+  const styles = getComputedStyle(document.documentElement);
+  const axisText =
+    styles.getPropertyValue('--text-primary')?.trim() ||
+    styles.getPropertyValue('--text-secondary')?.trim() ||
+    '#f6f7ff';
+  const axisLine = styles.getPropertyValue('--border-color')?.trim() || 'rgba(255,255,255,0.3)';
+  return { axisText, axisLine };
+}
 
 function generateClientBookId(title = '', author = '') {
   const normalized = `${title.toLowerCase()}-${author.toLowerCase()}`
@@ -61,6 +73,8 @@ function clearAppState() {
   dataSourcePreference = 'auto';
   canToggleDataSource = false;
   isAdmin = false;
+  heroPreviewBook = null;
+  hasLoadedTBR = false;
   updateDataSourceToggle();
   updateHeroPreviewCard();
 }
@@ -91,6 +105,10 @@ async function checkAuthStatus() {
       }
       
       try {
+        if (!hasLoadedTBR || isNewlyAuthenticated) {
+          loadTBR(false, true);
+        }
+
         // Page-specific initialization
         const path = window.location.pathname;
         if (path === '/settings') {
@@ -113,8 +131,9 @@ async function checkAuthStatus() {
         } else {
           // Home page
           updateUIForMode();
-          if (isNewlyAuthenticated) {
-            loadTBR();
+          const isHome = path === '/' || path === '/index.html';
+          if (isHome && hasLoadedTBR) {
+            updateHeroPreviewCard();
           }
         }
       } catch (uiError) {
@@ -525,7 +544,7 @@ function promptPasswordReset(userId) {
     return;
   }
   if (newPassword.length < 6) {
-    alert('Password must be at least 6 characters.');
+    showNotification('Password must be at least 6 characters.', 'error');
     return;
   }
   updateUserPassword(userId, newPassword);
@@ -586,7 +605,7 @@ async function saveBookLoreCredentials(event) {
   const password = document.getElementById('booklore-password').value;
 
   if (!username || !password) {
-    alert('Please enter both username and password');
+    showNotification('Please enter both username and password', 'error');
     return;
   }
 
@@ -600,17 +619,17 @@ async function saveBookLoreCredentials(event) {
     const data = await response.json();
 
     if (data.success) {
-      alert('BookLore credentials saved successfully!');
+      showNotification('BookLore credentials saved successfully!', 'success');
       // Clear the form
       document.getElementById('booklore-form').reset();
       // Refresh auth status to update UI
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to save credentials');
+      showNotification(data.message || 'Failed to save credentials', 'error');
     }
   } catch (error) {
     console.error('Error saving BookLore credentials:', error);
-    alert('Failed to save credentials. Please try again.');
+    showNotification('Failed to save credentials. Please try again.', 'error');
   }
 }
 
@@ -627,14 +646,14 @@ async function removeBookLoreCredentials() {
     const data = await response.json();
 
     if (data.success) {
-      alert('BookLore connection removed');
+      showNotification('BookLore connection removed', 'success');
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to remove connection');
+      showNotification(data.message || 'Failed to remove connection', 'error');
     }
   } catch (error) {
     console.error('Error removing BookLore credentials:', error);
-    alert('Failed to remove connection. Please try again.');
+    showNotification('Failed to remove connection. Please try again.', 'error');
   }
 }
 
@@ -694,14 +713,14 @@ async function removeGoodreadsData() {
     const data = await response.json();
 
     if (data.success) {
-      alert('Goodreads data removed');
+      showNotification('Goodreads data removed', 'success');
       await checkAuthStatus();
     } else {
-      alert(data.message || 'Failed to remove data');
+      showNotification(data.message || 'Failed to remove data', 'error');
     }
   } catch (error) {
     console.error('Error removing Goodreads data:', error);
-    alert('Failed to remove data. Please try again.');
+    showNotification('Failed to remove data. Please try again.', 'error');
   }
 }
 
@@ -736,7 +755,7 @@ function switchTab(tabName) {
   document.getElementById(`${tabName}-tab`)?.classList.add('active');
 
   if (tabName === 'tbr') {
-    loadTBR();
+    loadTBR(true, false);
   }
 }
 
@@ -772,6 +791,13 @@ function formatReasoning(reasoning = '') {
   return escapeHtml(reasoning).replace(/\n/g, '<br>');
 }
 
+function escapeForOnclick(str = '') {
+  return String(str)
+    .replace(/\\/g, '\\\\') // Escape backslashes first
+    .replace(/'/g, "\\'")   // Escape single quotes for JS string
+    .replace(/"/g, '&quot;');// Escape double quotes for HTML attribute
+}
+
 function buildRecommendationActions(rec) {
   const titleData = encodeURIComponent(rec.title || '');
   const authorData = encodeURIComponent(rec.author || 'Unknown');
@@ -779,19 +805,19 @@ function buildRecommendationActions(rec) {
   const amazonData = rec.amazonUrl ? encodeURIComponent(rec.amazonUrl) : '';
   const coverData = rec.coverUrl ? encodeURIComponent(rec.coverUrl) : '';
 
+  // Use escapeForOnclick for the inline JS arguments
+  const jsTitle = escapeForOnclick(rec.title || '');
+  const jsAuthor = escapeForOnclick(rec.author || '');
+  const jsAmazon = escapeForOnclick(rec.amazonUrl || '');
+
   return `
     <div class="recommendation-actions">
       <button
         class="btn btn-sm btn-primary"
-        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}', '${escapeHtml(rec.amazonUrl || '')}', this)"
+        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
       >
         View Details
       </button>
-      ${rec.amazonUrl ? `
-        <a href="${escapeHtml(rec.amazonUrl)}" target="_blank" class="amazon-link">
-          View on Amazon →
-        </a>
-      ` : ''}
       <button
         class="btn btn-sm btn-secondary"
         data-title="${titleData}"
@@ -807,16 +833,17 @@ function buildRecommendationActions(rec) {
   `;
 }
 
-function renderRecommendationMarkup(rec, index) {
+function renderRecommendationMarkup(rec, index, prefix = '') {
   const safeTitle = escapeHtml(rec.title || 'Untitled');
   const safeAuthor = escapeHtml(rec.author || 'Unknown');
   const safeReasoning = formatReasoning(rec.reasoning || '');
+  const imgId = prefix ? `${prefix}-cover-${index}` : `cover-${index}`;
 
   return `
     <li class="recommendation-item">
       <div class="recommendation-layout">
           <div class="recommendation-cover-container">
-            <img id="cover-${index}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+            <img id="${imgId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
               data-title="${safeTitle}" 
               data-author="${safeAuthor}" 
               alt="Cover of ${safeTitle}" 
@@ -873,76 +900,260 @@ function showNotification(message, type = 'success') {
   }, 4000);
 }
 
-// Recommendation functions
-async function getSimilarRecommendations() {
-  showLoading('Loading recommendations...', 'similar-results');
-  try {
-    const response = await fetch(`${API_BASE}/recommendations/similar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+// SSE Progress functions
+function showProgressBar(targetElementId, initialMessage = 'Initializing...') {
+  const targetElement = document.getElementById(targetElementId);
+  if (!targetElement) return;
+
+  const progressHtml = `
+    <div class="progress-container" id="progress-container">
+      <div class="progress-text">
+        <span class="progress-message" id="progress-message">${initialMessage}</span>
+        <span class="progress-percent" id="progress-percent">0%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+      </div>
+    </div>
+  `;
+
+  targetElement.innerHTML = progressHtml;
+}
+
+function updateProgress(percent, message) {
+  const fillElement = document.getElementById('progress-bar-fill');
+  const messageElement = document.getElementById('progress-message');
+  const percentElement = document.getElementById('progress-percent');
+
+  if (fillElement) {
+    fillElement.style.width = `${percent}%`;
+  }
+  if (messageElement) {
+    messageElement.textContent = message;
+  }
+  if (percentElement) {
+    percentElement.textContent = `${percent}%`;
+  }
+}
+
+function hideProgress() {
+  const progressContainer = document.getElementById('progress-container');
+  if (progressContainer) {
+    progressContainer.remove();
+  }
+}
+
+/**
+ * Fetch recommendations using Server-Sent Events for progress tracking
+ * @param {string} endpoint - SSE endpoint URL
+ * @param {string} targetElementId - Element to display results
+ * @param {function} displayCallback - Function to display the final results
+ */
+function fetchRecommendationsWithSSE(endpoint, targetElementId, displayCallback) {
+  return new Promise((resolve, reject) => {
+    showProgressBar(targetElementId, 'Connecting...');
+
+    const eventSource = new EventSource(endpoint, { withCredentials: true });
+    let isComplete = false;
+    let hasReceivedData = false;
+    let currentPercent = 0;
+    let currentStage = '';
+    let rotatingMessageInterval = null;
+    let fakeProgressInterval = null;
+    
+    // Rotating messages for when stuck on "analyzing" stage
+    const analyzingMessages = [
+      'AI is analyzing your reading patterns...',
+      'Finding books that match your taste...',
+      'Considering themes and writing styles...',
+      'Searching through millions of books...',
+      'Identifying perfect matches...',
+      'Almost there, generating personalized picks...',
+    ];
+    let messageIndex = 0;
+
+    // Start rotating messages if stuck at analyzing stage
+    function startRotatingMessages() {
+      if (rotatingMessageInterval) return;
+      
+      rotatingMessageInterval = setInterval(() => {
+        if (currentStage === 'analyzing' && currentPercent >= 60 && currentPercent < 90) {
+          messageIndex = (messageIndex + 1) % analyzingMessages.length;
+          updateProgress(currentPercent, analyzingMessages[messageIndex]);
+        }
+      }, 4000); // Rotate every 4 seconds
+    }
+
+    // Start fake micro-progress for analyzing stage
+    function startFakeMicroProgress() {
+      if (fakeProgressInterval) return;
+      
+      let fakePercent = currentPercent;
+      const targetPercent = 85; // Don't go beyond 85%
+      
+      fakeProgressInterval = setInterval(() => {
+        if (currentStage === 'analyzing' && fakePercent < targetPercent) {
+          // Logarithmic slowdown: faster at first, slower as we approach target
+          const remaining = targetPercent - fakePercent;
+          const increment = Math.max(0.5, remaining * 0.08);
+          
+          fakePercent = Math.min(targetPercent, fakePercent + increment);
+          currentPercent = Math.floor(fakePercent);
+          
+          // Update with current rotating message
+          const currentMessage = analyzingMessages[messageIndex % analyzingMessages.length];
+          updateProgress(currentPercent, currentMessage);
+        } else if (currentStage !== 'analyzing') {
+          // Stop fake progress if we've moved to a different stage
+          clearInterval(fakeProgressInterval);
+          fakeProgressInterval = null;
+        }
+      }, 2500); // Update every 2.5 seconds
+    }
+
+    // Cleanup intervals
+    function cleanup() {
+      if (rotatingMessageInterval) {
+        clearInterval(rotatingMessageInterval);
+        rotatingMessageInterval = null;
+      }
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+        fakeProgressInterval = null;
+      }
+    }
+
+    eventSource.addEventListener('progress', (event) => {
+      hasReceivedData = true;
+      try {
+        const data = JSON.parse(event.data);
+        currentPercent = data.percent;
+        currentStage = data.stage;
+        
+        updateProgress(data.percent, data.message);
+        
+        // Start enhancements when we hit the analyzing stage
+        if (data.stage === 'analyzing' && data.percent >= 60) {
+          startRotatingMessages();
+          startFakeMicroProgress();
+        }
+      } catch (error) {
+        console.error('Error parsing progress event:', error);
+      }
     });
 
-    const data = await response.json();
-    hideLoading();
+    eventSource.addEventListener('complete', (event) => {
+      isComplete = true;
+      hasReceivedData = true;
+      cleanup();
+      
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Jump to 100% before completing
+        updateProgress(100, 'Complete!');
+        
+        setTimeout(() => {
+          hideProgress();
+          displayCallback(data);
+          eventSource.close();
+          resolve(data);
+        }, 300);
+      } catch (error) {
+        console.error('Error parsing complete event:', error);
+        hideProgress();
+        showError('Failed to process recommendations');
+        eventSource.close();
+        reject(error);
+      }
+    });
 
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'similar-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    eventSource.addEventListener('error', (event) => {
+      if (isComplete) return;
+      
+      console.error('SSE error:', event);
+      cleanup();
+      hideProgress();
+      
+      if (!hasReceivedData) {
+        // Connection failed, show error
+        showError('Failed to connect. Please try again.');
+      } else {
+        showError('Connection interrupted. Please try again.');
+      }
+      
+      eventSource.close();
+      reject(new Error('SSE connection error'));
+    });
+
+    // Timeout after 60 seconds
+    setTimeout(() => {
+      if (eventSource.readyState !== EventSource.CLOSED) {
+        cleanup();
+        eventSource.close();
+        hideProgress();
+        showError('Request timed out. Please try again.');
+        reject(new Error('Timeout'));
+      }
+    }, 60000);
+  });
+}
+
+// Recommendation functions
+async function getSimilarRecommendations() {
+  try {
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/similar/stream`,
+      'similar-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'similar-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
 async function getContrastingRecommendations() {
-  showLoading('Loading recommendations...', 'contrasting-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/contrasting`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'contrasting-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/contrasting/stream`,
+      'contrasting-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'contrasting-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
 async function getBlindspots() {
-  showLoading('Analyzing your reading patterns...', 'blindspots-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/blindspots`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.analysis) {
-      displayBlindSpotsAnalysis(data.analysis, 'blindspots-results');
-    } else {
-      showError('Failed to get analysis');
-    }
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/blindspots/stream`,
+      'blindspots-results',
+      (data) => {
+        if (data.analysis) {
+          displayBlindSpotsAnalysis(data.analysis, 'blindspots-results');
+        } else {
+          showError('Failed to get analysis');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting analysis:', error);
-    showError('Failed to get analysis. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
@@ -954,26 +1165,22 @@ async function getCustomRecommendations() {
     return;
   }
 
-  showLoading('Loading recommendations...', 'custom-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/custom`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ criteria }),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'custom-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    const encodedCriteria = encodeURIComponent(criteria);
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/custom/stream?criteria=${encodedCriteria}`,
+      'custom-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'custom-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
@@ -1011,14 +1218,15 @@ function displayRecommendations(recommendations, elementId) {
 
   let html = '<ol class="recommendations-list">';
   filtered.forEach((rec, index) => {
-    html += renderRecommendationMarkup(rec, index);
+    // Use elementId as prefix to ensure unique IDs across tabs
+    html += renderRecommendationMarkup(rec, index, elementId);
   });
   html += '</ol>';
   resultsElement.innerHTML = html;
   
   // Lazy load covers
   filtered.forEach((rec, index) => {
-    fetchCoverImage(rec.title, rec.author, `cover-${index}`);
+    fetchCoverImage(rec.title, rec.author, `${elementId}-cover-${index}`);
   });
 }
 
@@ -1046,46 +1254,63 @@ async function fetchCoverImage(title, author, imgId) {
 
 function displayBlindSpotsAnalysis(analysis, elementId) {
   const resultsElement = document.getElementById(elementId);
+  const coversToLoad = [];
 
   let html = '<div class="analysis-container">';
 
   // Patterns
-  html += '<div class="analysis-section"><h3>Reading Patterns</h3><ul>';
+  html += '<div class="analysis-section"><h3>Reading Patterns</h3><div class="patterns-grid">';
   analysis.patterns.forEach(pattern => {
-    html += `<li>${pattern}</li>`;
+    html += `<div class="pattern-tag">${pattern}</div>`;
   });
-  html += '</ul></div>';
+  html += '</div></div>';
 
   // Blind Spots
-  html += '<div class="analysis-section"><h3>Blind Spots & Recommendations</h3>';
+  html += '<div class="analysis-section"><h3>Blind Spots & Recommendations</h3><div class="blind-spots-grid">';
   analysis.blindSpots.forEach((blindSpot, index) => {
     html += `
       <div class="blind-spot-card">
-        <h4>${index + 1}. ${blindSpot.category}</h4>
-        <p>${blindSpot.description}</p>
+        <div class="blind-spot-header">
+            <div class="blind-spot-number">${String(index + 1).padStart(2, '0')}</div>
+            <div class="blind-spot-info">
+                <h4>${blindSpot.category}</h4>
+                <p>${blindSpot.description}</p>
+            </div>
+        </div>
         <div class="blind-spot-recommendations">
-          <h5>Recommended books:</h5>
+          <h5>Recommended to bridge this gap:</h5>
     `;
 
     html += '<ol class="recommendations-list nested">';
     blindSpot.recommendations.forEach((rec, recIndex) => {
-      html += renderRecommendationMarkup(rec, recIndex);
+      const prefix = `blindspots-${index}`;
+      html += renderRecommendationMarkup(rec, recIndex, prefix);
+      coversToLoad.push({
+        title: rec.title,
+        author: rec.author,
+        id: `${prefix}-cover-${recIndex}`
+      });
     });
     html += '</ol>';
 
     html += '</div></div>';
   });
-  html += '</div>';
+  html += '</div></div>';
 
   // Suggested Topics
-  html += '<div class="analysis-section"><h3>Suggested Topics to Explore</h3><ul>';
+  html += '<div class="analysis-section"><h3>Suggested Topics to Explore</h3><div class="topics-grid">';
   analysis.suggestedTopics.forEach(topic => {
-    html += `<li>${topic}</li>`;
+    html += `<div class="topic-tag">${topic}</div>`;
   });
-  html += '</ul></div>';
+  html += '</div></div>';
 
   html += '</div>';
   resultsElement.innerHTML = html;
+
+  // Lazy load covers
+  coversToLoad.forEach(item => {
+    fetchCoverImage(item.title, item.author, item.id);
+  });
 }
 
 function displayStats(stats, elementId) {
@@ -1107,17 +1332,23 @@ function displayStats(stats, elementId) {
     profileContainer.innerHTML = `
       <div class="profile-card">
         <div class="profile-header">
-          <div class="profile-icon">📚</div>
+          <div class="profile-icon">
+            <span class="profile-icon-emoji">📚</span>
+          </div>
           <div class="profile-title-group">
-            <div class="profile-label">Your Reader Persona</div>
+            <p class="profile-label">Your Reader Persona</p>
             <h3 class="profile-title">${stats.readerProfile.title}</h3>
           </div>
+          <span class="profile-chip">AI insight</span>
         </div>
-        <div class="profile-content">
+        <div class="profile-body">
           <p class="profile-summary">${stats.readerProfile.summary}</p>
           <div class="profile-fun-fact">
-            <span class="fun-fact-icon">💡</span>
-            <span class="fun-fact-text">${stats.readerProfile.funFact}</span>
+            <div class="profile-fun-icon">💡</div>
+            <div>
+              <p class="profile-fun-label">Signature quirk</p>
+              <p class="profile-fun-text">${stats.readerProfile.funFact}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1183,6 +1414,7 @@ function renderBarChart(data, selector, label) {
   const margin = { top: 20, right: 30, bottom: 40, left: 120 };
   const width = 500 - margin.left - margin.right;
   const height = 300 - margin.top - margin.bottom;
+  const { axisText, axisLine } = getChartColors();
 
   // Append SVG
   const svg = d3.select(selector)
@@ -1197,12 +1429,20 @@ function renderBarChart(data, selector, label) {
     .domain([0, d3.max(data, d => d.count)])
     .range([0, width]);
   
-  svg.append("g")
+  const xAxis = svg.append("g")
     .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x).ticks(5))
-    .selectAll("text")
+    .call(d3.axisBottom(x).ticks(5));
+
+  xAxis.selectAll("path")
+    .attr("stroke", axisLine);
+
+  xAxis.selectAll("line")
+    .attr("stroke", axisLine);
+
+  xAxis.selectAll("text")
     .attr("transform", "translate(-10,0)rotate(-45)")
-    .style("text-anchor", "end");
+    .style("text-anchor", "end")
+    .style("fill", axisText);
 
   // Y axis
   const y = d3.scaleBand()
@@ -1210,10 +1450,18 @@ function renderBarChart(data, selector, label) {
     .domain(data.map(d => d.name))
     .padding(0.2);
   
-  svg.append("g")
-    .call(d3.axisLeft(y))
-    .selectAll("text")
-    .style("font-size", "12px");
+  const yAxis = svg.append("g")
+    .call(d3.axisLeft(y));
+
+  yAxis.selectAll("path")
+    .attr("stroke", axisLine);
+
+  yAxis.selectAll("line")
+    .attr("stroke", axisLine);
+
+  yAxis.selectAll("text")
+    .style("font-size", "12px")
+    .style("fill", axisText);
 
   // Bars
   svg.selectAll("myRect")
@@ -1223,8 +1471,25 @@ function renderBarChart(data, selector, label) {
     .attr("y", d => y(d.name))
     .attr("width", d => x(d.count))
     .attr("height", y.bandwidth())
-    .attr("fill", "var(--primary)")
+    .attr("fill", "url(#bar-gradient)")
     .style("rx", 4); // Rounded corners
+
+  // Gradient definition
+  const defs = svg.append("defs");
+  const gradient = defs.append("linearGradient")
+    .attr("id", "bar-gradient")
+    .attr("x1", "0%")
+    .attr("x2", "100%")
+    .attr("y1", "0%")
+    .attr("y2", "0%");
+
+  gradient.append("stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "var(--accent)");
+
+  gradient.append("stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "var(--accent-strong)");
 
   // Labels on bars
   svg.selectAll("myLabel")
@@ -1234,31 +1499,47 @@ function renderBarChart(data, selector, label) {
     .attr("y", d => y(d.name) + y.bandwidth() / 2)
     .attr("dy", "0.35em")
     .text(d => d.count)
-    .style("fill", "var(--text)")
+    .style("fill", axisText)
     .style("font-size", "12px");
 }
 
 // TBR functions
-async function loadTBR() {
-  showLoading('Loading your TBR list...', 'tbr-results');
+async function loadTBR(showLoader = true, refreshHero = true) {
+  if (showLoader) {
+    showLoading('Loading your TBR list...', 'tbr-results');
+  }
   try {
     const response = await fetch(`${API_BASE}/tbr`);
     const data = await response.json();
-    hideLoading();
+    if (showLoader) {
+      hideLoading();
+    }
 
     if (data.tbr) {
+      hasLoadedTBR = true;
       tbrCache = data.tbr;
       displayTBR(data.tbr, 'tbr-results');
-      updateHeroPreviewCard();
+      if (refreshHero) {
+        updateHeroPreviewCard();
+      }
     } else {
       tbrCache = [];
-      updateHeroPreviewCard();
-      showError('Failed to load TBR list');
+      if (refreshHero) {
+        updateHeroPreviewCard();
+      }
+      if (showLoader) {
+        showError('Failed to load TBR list');
+      }
     }
   } catch (error) {
-    hideLoading();
+    hasLoadedTBR = false;
+    if (showLoader) {
+      hideLoading();
+    }
     console.error('Error loading TBR:', error);
-    showError('Failed to load TBR list. Please try again.');
+    if (showLoader) {
+      showError('Failed to load TBR list. Please try again.');
+    }
   }
 }
 
@@ -1343,7 +1624,6 @@ function displayTBR(books, elementId) {
 
   if (books.length === 0) {
     resultsElement.innerHTML = '<p class="no-results">Your TBR list is empty. Add books from recommendations!</p>';
-    updateHeroPreviewCard();
     return;
   }
 
@@ -1373,11 +1653,10 @@ function displayTBR(books, elementId) {
             <div class="recommendation-actions">
               <button
                 class="btn btn-sm btn-primary"
-                onclick="fetchBookDetails('${safeTitle}', '${safeAuthor}', '${escapeHtml(book.amazonUrl || '')}', this)"
+                onclick="fetchBookDetails('${escapeForOnclick(book.title)}', '${escapeForOnclick(book.author)}', '${escapeForOnclick(book.amazonUrl || '')}', this)"
               >
                 View Details
               </button>
-              ${book.amazonUrl ? `<a href="${escapeHtml(book.amazonUrl)}" target="_blank" class="amazon-link">View on Amazon →</a>` : ''}
               <button class="btn btn-sm btn-secondary" onclick="removeFromTBR('${book.id}')">Remove</button>
             </div>
             <div class="tbr-meta">Added: ${addedDate}</div>
@@ -1389,29 +1668,31 @@ function displayTBR(books, elementId) {
   html += '</ol>';
 
   resultsElement.innerHTML = html;
-  updateHeroPreviewCard();
 }
 
 function updateHeroPreviewCard() {
   const card = document.getElementById('hero-preview-card');
   const titleEl = document.getElementById('hero-preview-title');
   const authorEl = document.getElementById('hero-preview-author');
-  const reasoningEl = document.getElementById('hero-preview-reasoning');
+  const buttonEl = document.getElementById('hero-preview-button');
 
-  if (!card || !titleEl || !authorEl || !reasoningEl) {
+  if (!card || !titleEl || !authorEl || !buttonEl) {
     return;
   }
 
   if (!tbrCache || tbrCache.length === 0) {
+    heroPreviewBook = null;
     card.classList.add('hidden');
     titleEl.textContent = 'TBR is empty';
+    titleEl.removeAttribute('href');
     authorEl.textContent = '';
-    reasoningEl.textContent = 'Add a book to your TBR to see it featured here.';
+    buttonEl.disabled = true;
     return;
   }
 
   const index = Math.floor(Math.random() * tbrCache.length);
   const topBook = tbrCache[index];
+  heroPreviewBook = topBook;
   card.classList.remove('hidden');
   titleEl.textContent = topBook.title || 'Upcoming book';
   if (topBook.amazonUrl) {
@@ -1420,8 +1701,21 @@ function updateHeroPreviewCard() {
     titleEl.removeAttribute('href');
   }
   authorEl.textContent = topBook.author ? `by ${topBook.author}` : '';
-  reasoningEl.textContent =
-    topBook.reasoning || 'Recently added to your TBR. Start reading it next!';
+  buttonEl.disabled = false;
+}
+
+function openHeroPreviewDetails() {
+  const button = document.getElementById('hero-preview-button');
+  if (!heroPreviewBook || !button) {
+    return;
+  }
+
+  fetchBookDetails(
+    heroPreviewBook.title || '',
+    heroPreviewBook.author || 'Unknown',
+    heroPreviewBook.amazonUrl || '',
+    button
+  );
 }
 
 // Theme toggle
@@ -1447,11 +1741,56 @@ function initTheme() {
   icon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 }
 
+// Hide/show the sidebar on mobile depending on scroll direction
+function setupMobileSidebarAutoHide() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+
+  const updateSidebarVisibility = () => {
+    const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+    if (!isMobile) {
+      sidebar.classList.remove('sidebar-hidden');
+      lastScrollY = window.scrollY;
+      ticking = false;
+      return;
+    }
+
+    const currentScroll = window.scrollY;
+    const passedThreshold = currentScroll > 120;
+
+    if (!passedThreshold) {
+      sidebar.classList.remove('sidebar-hidden');
+    } else if (currentScroll > lastScrollY) {
+      sidebar.classList.add('sidebar-hidden');
+    } else if (currentScroll < lastScrollY) {
+      sidebar.classList.remove('sidebar-hidden');
+    }
+
+    lastScrollY = currentScroll;
+    ticking = false;
+  };
+
+  const handleScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(updateSidebarVisibility);
+      ticking = true;
+    }
+  };
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('resize', updateSidebarVisibility);
+  updateSidebarVisibility();
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   checkAuthStatus();
   loadAppVersion();
+  setupMobileSidebarAutoHide();
 
   // Tab switching
   document.querySelectorAll('.tab-button').forEach(button => {

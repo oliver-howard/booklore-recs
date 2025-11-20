@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,7 +10,7 @@
   <body>
     <!-- Login Modal (Shared) -->
     <div id="login-modal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content glass-panel">
         <h2>Welcome to BookRex</h2>
         <p id="auth-modal-subtitle" class="modal-subtitle">Log in to your account</p>
 
@@ -56,53 +56,76 @@
       </div>
     </div>
 
-    <div class="container">
-      <div class="top-nav">
+    <div class="app-frame">
+      <aside class="sidebar glass-panel">
         <div class="nav-brand">
-          <a href="/" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 10px;">
-            <img
-              src="/assets/logo/light-theme-logo.png"
-              alt="BookRex"
-              class="mini-logo light-logo"
-            />
-            <img
-              src="/assets/logo/dark-theme-logo.png"
-              alt="BookRex"
-              class="mini-logo dark-logo"
-            />
+          <div class="brand-logos">
+            <img src="/assets/logo/light-theme-logo.png" alt="BookRex" class="mini-logo light-logo" />
+            <img src="/assets/logo/dark-theme-logo.png" alt="BookRex" class="mini-logo dark-logo" />
+          </div>
+          <div class="brand-copy">
             <span>BookRex</span>
-          </a>
+          </div>
         </div>
+        <nav class="sidebar-nav">
+          <a href="/" class="sidebar-link">Dashboard</a>
+          <a href="/stats" class="sidebar-link active">Insights</a>
+          <a href="/settings" class="sidebar-link">Settings</a>
+        </nav>
+        <div class="sidebar-divider"></div>
         <div id="user-info" class="user-info hidden">
-          <span id="username-display"></span>
-          <a href="/stats" class="nav-pill" style="text-decoration: none; background: rgba(255, 255, 255, 0.35);">Stats</a>
-          <a href="/settings" class="nav-pill" style="text-decoration: none;">Settings</a>
-          <button class="nav-pill" onclick="handleLogout()">Logout</button>
+          <span id="username-display" class="user-handle"></span>
+          <div class="user-controls">
+            <button class="nav-pill" onclick="handleLogout()">Logout</button>
+          </div>
         </div>
-      </div>
+        <div class="sidebar-footer">
+          <p class="sidebar-hint">See the trends shaping your shelves.</p>
+          <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="theme-icon" id="theme-icon">🌙</span>
+          </button>
+        </div>
+      </aside>
 
-      <div class="section-header">
-        <h2>Your Reading Statistics</h2>
-        <p>Overview of your reading history</p>
-      </div>
+      <main class="content-area">
+        <header class="hero hero-panel glass-panel compact hero-stats">
+          <div class="hero-text">
+            <p class="eyebrow">Immersive insights</p>
+            <h1>Your reading statistics</h1>
+            <p class="hero-tagline">
+              Genre distribution, top voices, and blind spots rendered across glass panels.
+            </p>
+          </div>
+        </header>
 
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <p>Loading statistics...</p>
-      </div>
+        <div id="notification" class="notification hidden"></div>
+        <div id="error" class="error-banner hidden"></div>
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Loading statistics...</p>
+        </div>
 
-      <div id="error" class="error hidden"></div>
-      <div id="notification" class="notification hidden"></div>
-      
-      <div id="reader-profile" class="reader-profile hidden"></div>
+        <section class="panel glass-panel">
+          <div class="section-header">
+            <div>
+              <h3>Reader Profile</h3>
+              <p>Overview of your reading history</p>
+            </div>
+          </div>
+          <div id="reader-profile" class="reader-profile hidden"></div>
+        </section>
 
-      <div id="stats-results" class="results"></div>
+        <section class="panel glass-panel">
+          <div class="section-header">
+            <div>
+              <h3>Data Highlights</h3>
+              <p>Charts, totals, and other nuggets</p>
+            </div>
+          </div>
+          <div id="stats-results" class="results"></div>
+        </section>
+      </main>
     </div>
-
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-      <span class="theme-icon" id="theme-icon">🌙</span>
-    </button>
 
     <script src="/app.js"></script>
   </body>

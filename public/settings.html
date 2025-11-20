@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,7 +9,7 @@
   <body>
     <!-- Login Modal (Shared) -->
     <div id="login-modal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content glass-panel">
         <h2>Welcome to BookRex</h2>
         <p id="auth-modal-subtitle" class="modal-subtitle">Log in to your account</p>
 
@@ -55,147 +55,173 @@
       </div>
     </div>
 
-    <div class="container">
-      <div class="top-nav">
+    <div class="app-frame">
+      <aside class="sidebar glass-panel">
         <div class="nav-brand">
-          <a href="/" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 10px;">
-            <img
-              src="/assets/logo/light-theme-logo.png"
-              alt="BookRex"
-              class="mini-logo light-logo"
-            />
-            <img
-              src="/assets/logo/dark-theme-logo.png"
-              alt="BookRex"
-              class="mini-logo dark-logo"
-            />
+          <div class="brand-logos">
+            <img src="/assets/logo/light-theme-logo.png" alt="BookRex" class="mini-logo light-logo" />
+            <img src="/assets/logo/dark-theme-logo.png" alt="BookRex" class="mini-logo dark-logo" />
+          </div>
+          <div class="brand-copy">
             <span>BookRex</span>
-          </a>
+          </div>
         </div>
+        <nav class="sidebar-nav">
+          <a href="/" class="sidebar-link">Dashboard</a>
+          <a href="/stats" class="sidebar-link">Insights</a>
+          <a href="/settings" class="sidebar-link active">Settings</a>
+        </nav>
+        <div class="sidebar-divider"></div>
         <div id="user-info" class="user-info hidden">
-          <span id="username-display"></span>
-          <a href="/stats" class="nav-pill" style="text-decoration: none;">Stats</a>
-          <a href="/settings" class="nav-pill" style="text-decoration: none; background: rgba(255, 255, 255, 0.35);">Settings</a>
-          <button class="nav-pill" onclick="handleLogout()">Logout</button>
-        </div>
-      </div>
-
-      <div class="section-header">
-        <h2>Settings</h2>
-        <p>Configure your data sources</p>
-      </div>
-
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <p>Loading...</p>
-      </div>
-
-      <div id="notification" class="notification hidden"></div>
-
-      <!-- BookLore Integration -->
-      <div class="settings-section">
-        <h3>BookLore Integration</h3>
-        <p class="settings-description">
-          Connect your BookLore account to sync your reading history and enable all features.
-        </p>
-        <div id="booklore-status" class="status-indicator">
-          <span id="booklore-status-text">Not connected</span>
-        </div>
-
-        <form id="booklore-form" onsubmit="saveBookLoreCredentials(event)" class="settings-form">
-          <div class="form-group">
-            <label for="booklore-username">BookLore Username</label>
-            <input
-              type="text"
-              id="booklore-username"
-              placeholder="Your BookLore username"
-              autocomplete="username"
-            />
+          <span id="username-display" class="user-handle"></span>
+          <div class="user-controls">
+            <button class="nav-pill" onclick="handleLogout()">Logout</button>
           </div>
-          <div class="form-group">
-            <label for="booklore-password">BookLore Password</label>
-            <input
-              type="password"
-              id="booklore-password"
-              placeholder="Your BookLore password"
-              autocomplete="current-password"
-            />
+        </div>
+        <div class="sidebar-footer">
+          <p class="sidebar-hint">Sync your sources, keep BookRex calibrated.</p>
+          <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="theme-icon" id="theme-icon">🌙</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="content-area">
+        <header class="hero hero-panel glass-panel compact hero-settings">
+          <div class="hero-text">
+            <p class="eyebrow">Control center</p>
+            <h1>Settings &amp; data sources</h1>
+            <p class="hero-tagline">
+              Connect BookLore, upload Goodreads exports, and choose which stream fuels your recommendations.
+            </p>
           </div>
-          <div class="settings-buttons">
-            <button type="submit" class="btn btn-primary">Save Credentials</button>
-            <button type="button" class="btn btn-secondary" onclick="removeBookLoreCredentials()">
-              Remove Connection
-            </button>
+        </header>
+
+        <div id="notification" class="notification hidden"></div>
+        <div id="error" class="error-banner hidden"></div>
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Loading...</p>
+        </div>
+
+        <section class="settings-grid">
+          <!-- BookLore Integration -->
+          <div class="settings-section glass-panel">
+            <div class="section-header">
+              <div>
+                <h3>BookLore Integration</h3>
+                <p class="settings-description">
+                  Connect your BookLore account to sync your reading history and unlock the full dashboard.
+                </p>
+              </div>
+              <div id="booklore-status" class="status-indicator">
+                <span id="booklore-status-text">Not connected</span>
+              </div>
+            </div>
+
+            <form id="booklore-form" onsubmit="saveBookLoreCredentials(event)" class="settings-form">
+              <div class="form-group">
+                <label for="booklore-username">BookLore Username</label>
+                <input
+                  type="text"
+                  id="booklore-username"
+                  placeholder="Your BookLore username"
+                  autocomplete="username"
+                />
+              </div>
+              <div class="form-group">
+                <label for="booklore-password">BookLore Password</label>
+                <input
+                  type="password"
+                  id="booklore-password"
+                  placeholder="Your BookLore password"
+                  autocomplete="current-password"
+                />
+              </div>
+              <div class="settings-buttons">
+                <button type="submit" class="btn btn-primary">Save Credentials</button>
+                <button type="button" class="btn btn-secondary" onclick="removeBookLoreCredentials()">
+                  Remove Connection
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
 
-      <!-- Goodreads CSV Upload -->
-      <div class="settings-section">
-        <h3>Goodreads Import</h3>
-        <p class="settings-description">
-          Upload your Goodreads library export to use your reading history for recommendations.
-          Export from <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>.
-        </p>
-        <div id="goodreads-status" class="status-indicator">
-          <span id="goodreads-status-text">No data uploaded</span>
-        </div>
+          <!-- Goodreads CSV Upload -->
+          <div class="settings-section glass-panel">
+            <div class="section-header">
+              <div>
+                <h3>Goodreads Import</h3>
+                <p class="settings-description">
+                  Upload your Goodreads library export to use your reading history for recommendations.
+                  Export from <a href="https://www.goodreads.com/review/import" target="_blank">goodreads.com/review/import</a>.
+                </p>
+              </div>
+              <div id="goodreads-status" class="status-indicator">
+                <span id="goodreads-status-text">No data uploaded</span>
+              </div>
+            </div>
 
-        <div class="form-group">
-          <input type="file" id="settings-csv-input" accept=".csv" />
-        </div>
-        <div id="settings-csv-error" class="error hidden"></div>
-        <div id="settings-csv-success" class="success hidden"></div>
-        <div class="settings-buttons">
-          <button type="button" class="btn btn-primary" onclick="uploadGoodreadsCSV()">
-            Upload CSV
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
-            Remove Data
-          </button>
-        </div>
-      </div>
+            <div class="form-group file-input">
+              <input type="file" id="settings-csv-input" accept=".csv" />
+            </div>
+            <div id="settings-csv-error" class="error hidden"></div>
+            <div id="settings-csv-success" class="success hidden"></div>
+            <div class="settings-buttons">
+              <button type="button" class="btn btn-primary" onclick="uploadGoodreadsCSV()">
+                Upload CSV
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="removeGoodreadsData()">
+                Remove Data
+              </button>
+            </div>
+          </div>
 
-      <!-- Data Source Preference -->
-      <div class="settings-section hidden" id="data-source-section">
-        <h3>Active Data Source</h3>
-        <p class="settings-description">
-          You have connected BookLore and imported Goodreads data. Choose which source Book Rex should use for recommendations.
-        </p>
-        <div class="data-source-toggle">
-          <button type="button" class="toggle-option" data-source="auto" onclick="setDataSourcePreference('auto')">
-            Auto
-          </button>
-          <button type="button" class="toggle-option" data-source="booklore" onclick="setDataSourcePreference('booklore')">
-            BookLore
-          </button>
-          <button type="button" class="toggle-option" data-source="goodreads" onclick="setDataSourcePreference('goodreads')">
-            Goodreads
-          </button>
-        </div>
-        <p id="data-source-summary" class="settings-description small-text"></p>
-      </div>
+          <!-- Data Source Preference -->
+          <div class="settings-section glass-panel hidden" id="data-source-section">
+            <div class="section-header">
+              <div>
+                <h3>Active Data Source</h3>
+                <p class="settings-description">
+                  Choose which source BookRex should use for recommendations when multiple data sets are available.
+                </p>
+              </div>
+            </div>
+            <div class="data-source-toggle">
+              <button type="button" class="toggle-option" data-source="auto" onclick="setDataSourcePreference('auto')">
+                Auto
+              </button>
+              <button type="button" class="toggle-option" data-source="booklore" onclick="setDataSourcePreference('booklore')">
+                BookLore
+              </button>
+              <button type="button" class="toggle-option" data-source="goodreads" onclick="setDataSourcePreference('goodreads')">
+                Goodreads
+              </button>
+            </div>
+            <p id="data-source-summary" class="settings-description small-text"></p>
+          </div>
 
-      <!-- Admin Tools -->
-      <div class="settings-section hidden" id="admin-section">
-        <h3>Admin Tools</h3>
-        <p class="settings-description">
-          View and manage all user accounts.
-        </p>
-        <div class="admin-table-wrapper">
-          <div id="admin-users-list"></div>
-        </div>
-      </div>
+          <!-- Admin Tools -->
+          <div class="settings-section glass-panel hidden" id="admin-section">
+            <div class="section-header">
+              <div>
+                <h3>Admin Tools</h3>
+                <p class="settings-description">
+                  View and manage all user accounts.
+                </p>
+              </div>
+            </div>
+            <div class="admin-table-wrapper">
+              <div id="admin-users-list"></div>
+            </div>
+          </div>
+        </section>
 
-      <div class="settings-version" id="app-version">
-        Version information loading...
-      </div>
+        <div class="settings-version glass-panel" id="app-version">
+          Version information loading...
+        </div>
+      </main>
     </div>
-
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-      <span class="theme-icon" id="theme-icon">🌙</span>
-    </button>
 
     <script src="/app.js"></script>
   </body>
