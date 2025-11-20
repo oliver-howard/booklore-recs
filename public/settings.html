@@ -105,48 +105,6 @@
         </div>
 
         <section class="settings-grid">
-          <!-- BookLore Integration -->
-          <div class="settings-section glass-panel">
-            <div class="section-header">
-              <div>
-                <h3>BookLore Integration</h3>
-                <p class="settings-description">
-                  Connect your BookLore account to sync your reading history and unlock the full dashboard.
-                </p>
-              </div>
-              <div id="booklore-status" class="status-indicator">
-                <span id="booklore-status-text">Not connected</span>
-              </div>
-            </div>
-
-            <form id="booklore-form" onsubmit="saveBookLoreCredentials(event)" class="settings-form">
-              <div class="form-group">
-                <label for="booklore-username">BookLore Username</label>
-                <input
-                  type="text"
-                  id="booklore-username"
-                  placeholder="Your BookLore username"
-                  autocomplete="username"
-                />
-              </div>
-              <div class="form-group">
-                <label for="booklore-password">BookLore Password</label>
-                <input
-                  type="password"
-                  id="booklore-password"
-                  placeholder="Your BookLore password"
-                  autocomplete="current-password"
-                />
-              </div>
-              <div class="settings-buttons">
-                <button type="submit" class="btn btn-primary">Save Credentials</button>
-                <button type="button" class="btn btn-secondary" onclick="removeBookLoreCredentials()">
-                  Remove Connection
-                </button>
-              </div>
-            </form>
-          </div>
-
           <!-- Goodreads CSV Upload -->
           <div class="settings-section glass-panel">
             <div class="section-header">
@@ -176,6 +134,59 @@
               </button>
             </div>
           </div>
+
+          <!-- BookLore Integration -->
+          <div class="settings-section glass-panel">
+            <div class="section-header clickable-header" onclick="toggleBookLoreSection()">
+              <div class="header-content">
+                <h3>BookLore Integration</h3>
+                <p class="settings-description">
+                  Connect your BookLore account to sync your reading history and unlock the full dashboard.
+                </p>
+              </div>
+              <div class="header-actions">
+                <div id="booklore-status" class="status-indicator">
+                  <span id="booklore-status-text">Not connected</span>
+                </div>
+                <button type="button" class="icon-button toggle-icon" aria-label="Toggle section">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="booklore-content" class="collapsible-content hidden">
+              <form id="booklore-form" onsubmit="saveBookLoreCredentials(event)" class="settings-form">
+                <div class="form-group">
+                  <label for="booklore-username">BookLore Username</label>
+                  <input
+                    type="text"
+                    id="booklore-username"
+                    placeholder="Your BookLore username"
+                    autocomplete="username"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="booklore-password">BookLore Password</label>
+                  <input
+                    type="password"
+                    id="booklore-password"
+                    placeholder="Your BookLore password"
+                    autocomplete="current-password"
+                  />
+                </div>
+                <div class="settings-buttons">
+                  <button type="submit" class="btn btn-primary">Save Credentials</button>
+                  <button type="button" class="btn btn-secondary" onclick="removeBookLoreCredentials()">
+                    Remove Connection
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+
 
           <!-- Data Source Preference -->
           <div class="settings-section glass-panel hidden" id="data-source-section">

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '../database.js';
 import { GoodreadsParser } from '../goodreads-parser.js';
 import { ServiceFactory } from '../services/service-factory.js';
+import { BookLoreClient } from '../booklore-client.js';
 import { DataSourcePreference } from '../types.js';
 
 /**
@@ -37,6 +38,10 @@ export class SettingsController {
     }
 
     try {
+      // Verify credentials first
+      const client = new BookLoreClient(username, password);
+      await client.authenticate();
+
       // Update credentials in database
       DatabaseService.updateBookLoreCredentials(req.session.userId, username, password);
 
@@ -48,9 +53,13 @@ export class SettingsController {
         message: 'BookLore credentials saved successfully',
       });
     } catch (error) {
-      res.status(500).json({
+      // Check if it's an authentication error
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save credentials';
+      const isAuthError = errorMessage.includes('Authentication failed') || errorMessage.includes('401') || errorMessage.includes('403');
+      
+      res.status(isAuthError ? 400 : 500).json({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to save credentials',
+        message: errorMessage,
       });
     }
   };

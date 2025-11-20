@@ -239,6 +239,29 @@ function updateSettingsUI(data) {
   } else {
     document.getElementById('admin-section')?.classList.add('hidden');
   }
+  
+  // Update toggle icon state
+  updateBookLoreToggleIcon();
+}
+
+function toggleBookLoreSection() {
+  const content = document.getElementById('booklore-content');
+  if (content) {
+    content.classList.toggle('hidden');
+    updateBookLoreToggleIcon();
+  }
+}
+
+function updateBookLoreToggleIcon() {
+  const content = document.getElementById('booklore-content');
+  const icon = document.querySelector('.toggle-icon svg');
+  if (content && icon) {
+    if (content.classList.contains('hidden')) {
+      icon.style.transform = 'rotate(0deg)';
+    } else {
+      icon.style.transform = 'rotate(180deg)';
+    }
+  }
 }
 
 // Display app version in settings

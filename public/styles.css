@@ -1623,3 +1623,56 @@ textarea {
     gap: 12px;
   }
 }
+
+/* Collapsible Settings Section */
+.clickable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.clickable-header:hover {
+  opacity: 0.9;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toggle-icon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.toggle-icon:hover {
+  color: var(--text-primary);
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+
+.toggle-icon svg {
+  transition: transform 0.3s ease;
+}
+
+.collapsible-content {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.collapsible-content.hidden {
+  display: none;
+}
