@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.8.0...book-rex-v1.9.0) (2025-11-20)
+
+
+### Features
+
+* Add detailed error logging to recommendation stream endpoints and an initial SSE buffer flush ping. ([a33fa4d](https://github.com/oliver-howard/book-rex/commit/a33fa4d50313e436652c325244c7094ed4b4af06))
+
 ## [1.8.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.7.0...book-rex-v1.8.0) (2025-11-20)
 
 
