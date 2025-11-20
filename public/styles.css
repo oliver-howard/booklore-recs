@@ -166,13 +166,30 @@ body {
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  color: var(--text-secondary);
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
 }
 
 .user-handle {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-handle::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 4px 12px rgba(123, 123, 255, 0.3);
 }
 
 .user-controls {
@@ -183,50 +200,61 @@ body {
 
 .nav-pill {
   border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 6px 14px;
-  background: transparent;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   transition: all 0.2s ease;
   text-decoration: none;
+  width: 100%;
+  text-align: center;
 }
 
 .nav-pill:hover,
 .nav-pill.active-pill {
   color: var(--text-primary);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .sidebar-footer {
   margin-top: auto;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
 }
 
 .sidebar-hint {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--muted);
+  line-height: 1.4;
 }
 
 .theme-toggle {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   background: transparent;
-  color: var(--text-primary);
-  font-size: 1.4rem;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .theme-toggle:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .content-area {
