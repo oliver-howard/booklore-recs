@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.2](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.1...book-rex-v1.9.2) (2025-11-20)
+
+
+### Bug Fixes
+
+* Implement collapsible BookLore settings section with credential verification and improved error handling. ([61e97de](https://github.com/oliver-howard/book-rex/commit/61e97de3478f381a42adb301ce9343e2ffd3c4a6))
+
 ## [1.9.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.0...book-rex-v1.9.1) (2025-11-20)
 
 
