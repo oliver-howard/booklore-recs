@@ -1741,11 +1741,56 @@ function initTheme() {
   icon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 }
 
+// Hide/show the sidebar on mobile depending on scroll direction
+function setupMobileSidebarAutoHide() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+
+  const updateSidebarVisibility = () => {
+    const isMobile = window.matchMedia('(max-width: 1024px)').matches;
+    if (!isMobile) {
+      sidebar.classList.remove('sidebar-hidden');
+      lastScrollY = window.scrollY;
+      ticking = false;
+      return;
+    }
+
+    const currentScroll = window.scrollY;
+    const passedThreshold = currentScroll > 120;
+
+    if (!passedThreshold) {
+      sidebar.classList.remove('sidebar-hidden');
+    } else if (currentScroll > lastScrollY) {
+      sidebar.classList.add('sidebar-hidden');
+    } else if (currentScroll < lastScrollY) {
+      sidebar.classList.remove('sidebar-hidden');
+    }
+
+    lastScrollY = currentScroll;
+    ticking = false;
+  };
+
+  const handleScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(updateSidebarVisibility);
+      ticking = true;
+    }
+  };
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('resize', updateSidebarVisibility);
+  updateSidebarVisibility();
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   checkAuthStatus();
   loadAppVersion();
+  setupMobileSidebarAutoHide();
 
   // Tab switching
   document.querySelectorAll('.tab-button').forEach(button => {
