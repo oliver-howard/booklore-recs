@@ -3,6 +3,7 @@ import { DatabaseService } from '../database.js';
 import { ServiceFactory } from '../services/service-factory.js';
 import { ReadingAnalysis } from '../types.js';
 import { initSSEResponse, sendSSEProgress, sendSSEComplete, sendSSEError } from '../utils/sse-utils.js';
+import { logger } from '../logger.js';
 
 /**
  * Recommendation Controller
@@ -152,6 +153,11 @@ export class RecommendationController {
       
       sendSSEComplete(res, { recommendations });
     } catch (error) {
+      logger.error('Error in getSimilarStream', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionId: req.sessionID
+      });
       sendSSEError(res, error instanceof Error ? error.message : 'Failed to get recommendations');
     }
   };
@@ -180,6 +186,11 @@ export class RecommendationController {
       
       sendSSEComplete(res, { recommendations });
     } catch (error) {
+      logger.error('Error in getContrastingStream', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionId: req.sessionID
+      });
       sendSSEError(res, error instanceof Error ? error.message : 'Failed to get recommendations');
     }
   };
@@ -202,6 +213,11 @@ export class RecommendationController {
       
       sendSSEComplete(res, { analysis });
     } catch (error) {
+      logger.error('Error in getBlindspotStream', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionId: req.sessionID
+      });
       sendSSEError(res, error instanceof Error ? error.message : 'Failed to get blind spots');
     }
   };
@@ -239,6 +255,11 @@ export class RecommendationController {
       
       sendSSEComplete(res, { recommendations });
     } catch (error) {
+      logger.error('Error in getCustomStream', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionId: req.sessionID
+      });
       sendSSEError(res, error instanceof Error ? error.message : 'Failed to get custom recommendations');
     }
   };

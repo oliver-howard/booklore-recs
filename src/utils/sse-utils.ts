@@ -55,4 +55,7 @@ export function initSSEResponse(res: Response): void {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
   res.flushHeaders();
+  
+  // Send initial comment to flush buffers (helpful for Cloudflare/Nginx)
+  res.write(': ping\n\n');
 }
