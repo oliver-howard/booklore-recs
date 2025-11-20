@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.0...book-rex-v1.9.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* use `logger` utility for debug and enhanced authentication error messages ([d43bf61](https://github.com/oliver-howard/book-rex/commit/d43bf61f52d39f8c8bd7f095920bbc1e91bd4f21))
+
 ## [1.9.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.8.0...book-rex-v1.9.0) (2025-11-20)
 
 
