@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.8.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.7.0...book-rex-v1.8.0) (2025-11-20)
+
+
+### Features
+
+* Add exclusion list to AI prompts to prevent recommending already-read books and increase detailed history context to 100 ([a23957a](https://github.com/oliver-howard/book-rex/commit/a23957af164a82ecec5b2a8cdf53e05d27830a7e))
+* Add new API controllers for recommendations, auth, TBR, admin, and settings, introduce a service factory, and optimize BookLore client note fetching. ([ced01df](https://github.com/oliver-howard/book-rex/commit/ced01dffbce90ddf2a296c53218c817a6c10337a))
+* enhance book search accuracy with weighted matching and improve client-side event handling. ([7522ae4](https://github.com/oliver-howard/book-rex/commit/7522ae4f3aacb013b2eab63b1ef0a22290042fbc))
+* enhance loadTBR functionality with loader and hero refresh options ([3e01535](https://github.com/oliver-howard/book-rex/commit/3e01535634e465493670fbb41f098233e3c6bfde))
+* Enhance styling and layout for user info, navigation pills, sidebar footer, and theme toggle components. ([eacc289](https://github.com/oliver-howard/book-rex/commit/eacc289938b6990eeedc0f956fe9b14775ddfd14))
+* Implement mobile sidebar auto-hide functionality and enhance responsive design ([412783e](https://github.com/oliver-howard/book-rex/commit/412783e4bebdaad26cce80c247e5219d58e2bbf3))
+* Implement Server-Sent Events (SSE) for real-time progress tracking during recommendation generation with a new frontend progress bar. ([bd59a40](https://github.com/oliver-howard/book-rex/commit/bd59a40e902a410d5ddc7055d2bacc3eeac92120))
+* **ui:** enhance profile card and chart styles with improved layout and visuals ([7ea5f8d](https://github.com/oliver-howard/book-rex/commit/7ea5f8d086e4c73b99a5cb44e1038a1a59ce72b4))
+* **ui:** restyle dashboard, settings, and stats with new sidebar hero and preview action ([a6f9573](https://github.com/oliver-howard/book-rex/commit/a6f9573b30ba52404f91142d4810dffc9f5df427))
+
 ## [1.7.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.6.1...book-rex-v1.7.0) (2025-11-19)
 
 
