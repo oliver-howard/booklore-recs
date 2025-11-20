@@ -9,6 +9,7 @@ import {
   UserReading,
   TBRBook,
   DataSourcePreference,
+  ProgressCallback,
 } from './types.js';
 import { config } from './config.js';
 
@@ -51,22 +52,25 @@ export class RecommendationService {
   async getRecommendations(
     type: RecommendationType = 'similar',
     maxRecommendations?: number,
-    tbrBooks?: TBRBook[]
+    tbrBooks?: TBRBook[],
+    onProgress?: ProgressCallback
   ): Promise<Recommendation[] | ReadingAnalysis> {
     const max = maxRecommendations || config.ai.maxRecommendations;
     const source = this.determineDataSource();
+    
+    onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
     console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
 
     switch (type) {
       case 'similar':
-        const similarRecs = await this.aiService.getSimilarRecommendations(readings, tbrBooks, max);
+        const similarRecs = await this.aiService.getSimilarRecommendations(readings, tbrBooks, max, onProgress);
         return similarRecs;
       case 'contrasting':
-        const contrastingRecs = await this.aiService.getContrastingRecommendations(readings, tbrBooks, max);
+        const contrastingRecs = await this.aiService.getContrastingRecommendations(readings, tbrBooks, max, onProgress);
         return contrastingRecs;
       case 'blindspots':
-        const analysis = await this.aiService.analyzeReadingBlindSpots(readings);
+        const analysis = await this.aiService.analyzeReadingBlindSpots(readings, onProgress);
         // Enrich recommendations within blind spots - SKIPPED for performance (client-side fetch)
         /*
         if (analysis.blindSpots) {
@@ -90,7 +94,8 @@ export class RecommendationService {
   async getCustomRecommendations(
     criteria: string,
     maxRecommendations?: number,
-    tbrBooks?: TBRBook[]
+    tbrBooks?: TBRBook[],
+    onProgress?: ProgressCallback
   ): Promise<Recommendation[]> {
     const max = maxRecommendations || config.ai.maxRecommendations;
     const hasBookLore = !!this.bookloreClient;
@@ -102,10 +107,11 @@ export class RecommendationService {
     }
 
     const source = this.determineDataSource();
+    onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
     console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
 
-    const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max);
+    const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max, onProgress);
     return recommendations;
   }
 

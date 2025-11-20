@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '../database.js';
 import { ServiceFactory } from '../services/service-factory.js';
 import { ReadingAnalysis } from '../types.js';
+import { initSSEResponse, sendSSEProgress, sendSSEComplete, sendSSEError } from '../utils/sse-utils.js';
 
 /**
  * Recommendation Controller
@@ -122,6 +123,123 @@ export class RecommendationController {
         success: false,
         message: error instanceof Error ? error.message : 'Failed to get custom recommendations',
       });
+    }
+  };
+
+  // ========== SSE Streaming Endpoints ==========
+
+  /**
+   * Get similar recommendations with SSE progress
+   * GET /api/recommendations/similar/stream
+   */
+  getSimilarStream = async (req: Request, res: Response) => {
+    try {
+      initSSEResponse(res);
+      
+      const service = await this.serviceFactory.getService(req);
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      
+      const onProgress = (stage: string, percent: number, message: string) => {
+        sendSSEProgress(res, stage, percent, message);
+      };
+      
+      const recommendations = await service.getRecommendations(
+        'similar',
+        undefined,
+        tbrBooks,
+        onProgress
+      );
+      
+      sendSSEComplete(res, { recommendations });
+    } catch (error) {
+      sendSSEError(res, error instanceof Error ? error.message : 'Failed to get recommendations');
+    }
+  };
+
+  /**
+   * Get contrasting recommendations with SSE progress
+   * GET /api/recommendations/contrasting/stream
+   */
+  getContrastingStream = async (req: Request, res: Response) => {
+    try {
+      initSSEResponse(res);
+      
+      const service = await this.serviceFactory.getService(req);
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      
+      const onProgress = (stage: string, percent: number, message: string) => {
+        sendSSEProgress(res, stage, percent, message);
+      };
+      
+      const recommendations = await service.getRecommendations(
+        'contrasting',
+        undefined,
+        tbrBooks,
+        onProgress
+      );
+      
+      sendSSEComplete(res, { recommendations });
+    } catch (error) {
+      sendSSEError(res, error instanceof Error ? error.message : 'Failed to get recommendations');
+    }
+  };
+
+  /**
+   * Get blind spots analysis with SSE progress
+   * GET /api/recommendations/blindspots/stream
+   */
+  getBlindspotStream = async (req: Request, res: Response) => {
+    try {
+      initSSEResponse(res);
+      
+      const service = await this.serviceFactory.getService(req);
+      
+      const onProgress = (stage: string, percent: number, message: string) => {
+        sendSSEProgress(res, stage, percent, message);
+      };
+      
+      const analysis = (await service.getRecommendations('blindspots', undefined, undefined, onProgress)) as ReadingAnalysis;
+      
+      sendSSEComplete(res, { analysis });
+    } catch (error) {
+      sendSSEError(res, error instanceof Error ? error.message : 'Failed to get blind spots');
+    }
+  };
+
+  /**
+   * Get custom recommendations with SSE progress
+   * GET /api/recommendations/custom/stream?criteria=...
+   */
+  getCustomStream = async (req: Request, res: Response) => {
+    try {
+      const criteria = req.query.criteria as string;
+      
+      if (!criteria) {
+        return res.status(400).json({
+          success: false,
+          message: 'Criteria is required for custom recommendations',
+        });
+      }
+
+      initSSEResponse(res);
+      
+      const service = await this.serviceFactory.getService(req);
+      const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      
+      const onProgress = (stage: string, percent: number, message: string) => {
+        sendSSEProgress(res, stage, percent, message);
+      };
+      
+      const recommendations = await service.getCustomRecommendations(
+        criteria,
+        undefined,
+        tbrBooks,
+        onProgress
+      );
+      
+      sendSSEComplete(res, { recommendations });
+    } catch (error) {
+      sendSSEError(res, error instanceof Error ? error.message : 'Failed to get custom recommendations');
     }
   };
 }

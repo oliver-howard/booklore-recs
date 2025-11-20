@@ -887,76 +887,260 @@ function showNotification(message, type = 'success') {
   }, 4000);
 }
 
-// Recommendation functions
-async function getSimilarRecommendations() {
-  showLoading('Loading recommendations...', 'similar-results');
-  try {
-    const response = await fetch(`${API_BASE}/recommendations/similar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+// SSE Progress functions
+function showProgressBar(targetElementId, initialMessage = 'Initializing...') {
+  const targetElement = document.getElementById(targetElementId);
+  if (!targetElement) return;
+
+  const progressHtml = `
+    <div class="progress-container" id="progress-container">
+      <div class="progress-text">
+        <span class="progress-message" id="progress-message">${initialMessage}</span>
+        <span class="progress-percent" id="progress-percent">0%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+      </div>
+    </div>
+  `;
+
+  targetElement.innerHTML = progressHtml;
+}
+
+function updateProgress(percent, message) {
+  const fillElement = document.getElementById('progress-bar-fill');
+  const messageElement = document.getElementById('progress-message');
+  const percentElement = document.getElementById('progress-percent');
+
+  if (fillElement) {
+    fillElement.style.width = `${percent}%`;
+  }
+  if (messageElement) {
+    messageElement.textContent = message;
+  }
+  if (percentElement) {
+    percentElement.textContent = `${percent}%`;
+  }
+}
+
+function hideProgress() {
+  const progressContainer = document.getElementById('progress-container');
+  if (progressContainer) {
+    progressContainer.remove();
+  }
+}
+
+/**
+ * Fetch recommendations using Server-Sent Events for progress tracking
+ * @param {string} endpoint - SSE endpoint URL
+ * @param {string} targetElementId - Element to display results
+ * @param {function} displayCallback - Function to display the final results
+ */
+function fetchRecommendationsWithSSE(endpoint, targetElementId, displayCallback) {
+  return new Promise((resolve, reject) => {
+    showProgressBar(targetElementId, 'Connecting...');
+
+    const eventSource = new EventSource(endpoint, { withCredentials: true });
+    let isComplete = false;
+    let hasReceivedData = false;
+    let currentPercent = 0;
+    let currentStage = '';
+    let rotatingMessageInterval = null;
+    let fakeProgressInterval = null;
+    
+    // Rotating messages for when stuck on "analyzing" stage
+    const analyzingMessages = [
+      'AI is analyzing your reading patterns...',
+      'Finding books that match your taste...',
+      'Considering themes and writing styles...',
+      'Searching through millions of books...',
+      'Identifying perfect matches...',
+      'Almost there, generating personalized picks...',
+    ];
+    let messageIndex = 0;
+
+    // Start rotating messages if stuck at analyzing stage
+    function startRotatingMessages() {
+      if (rotatingMessageInterval) return;
+      
+      rotatingMessageInterval = setInterval(() => {
+        if (currentStage === 'analyzing' && currentPercent >= 60 && currentPercent < 90) {
+          messageIndex = (messageIndex + 1) % analyzingMessages.length;
+          updateProgress(currentPercent, analyzingMessages[messageIndex]);
+        }
+      }, 4000); // Rotate every 4 seconds
+    }
+
+    // Start fake micro-progress for analyzing stage
+    function startFakeMicroProgress() {
+      if (fakeProgressInterval) return;
+      
+      let fakePercent = currentPercent;
+      const targetPercent = 85; // Don't go beyond 85%
+      
+      fakeProgressInterval = setInterval(() => {
+        if (currentStage === 'analyzing' && fakePercent < targetPercent) {
+          // Logarithmic slowdown: faster at first, slower as we approach target
+          const remaining = targetPercent - fakePercent;
+          const increment = Math.max(0.5, remaining * 0.08);
+          
+          fakePercent = Math.min(targetPercent, fakePercent + increment);
+          currentPercent = Math.floor(fakePercent);
+          
+          // Update with current rotating message
+          const currentMessage = analyzingMessages[messageIndex % analyzingMessages.length];
+          updateProgress(currentPercent, currentMessage);
+        } else if (currentStage !== 'analyzing') {
+          // Stop fake progress if we've moved to a different stage
+          clearInterval(fakeProgressInterval);
+          fakeProgressInterval = null;
+        }
+      }, 2500); // Update every 2.5 seconds
+    }
+
+    // Cleanup intervals
+    function cleanup() {
+      if (rotatingMessageInterval) {
+        clearInterval(rotatingMessageInterval);
+        rotatingMessageInterval = null;
+      }
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+        fakeProgressInterval = null;
+      }
+    }
+
+    eventSource.addEventListener('progress', (event) => {
+      hasReceivedData = true;
+      try {
+        const data = JSON.parse(event.data);
+        currentPercent = data.percent;
+        currentStage = data.stage;
+        
+        updateProgress(data.percent, data.message);
+        
+        // Start enhancements when we hit the analyzing stage
+        if (data.stage === 'analyzing' && data.percent >= 60) {
+          startRotatingMessages();
+          startFakeMicroProgress();
+        }
+      } catch (error) {
+        console.error('Error parsing progress event:', error);
+      }
     });
 
-    const data = await response.json();
-    hideLoading();
+    eventSource.addEventListener('complete', (event) => {
+      isComplete = true;
+      hasReceivedData = true;
+      cleanup();
+      
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Jump to 100% before completing
+        updateProgress(100, 'Complete!');
+        
+        setTimeout(() => {
+          hideProgress();
+          displayCallback(data);
+          eventSource.close();
+          resolve(data);
+        }, 300);
+      } catch (error) {
+        console.error('Error parsing complete event:', error);
+        hideProgress();
+        showError('Failed to process recommendations');
+        eventSource.close();
+        reject(error);
+      }
+    });
 
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'similar-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    eventSource.addEventListener('error', (event) => {
+      if (isComplete) return;
+      
+      console.error('SSE error:', event);
+      cleanup();
+      hideProgress();
+      
+      if (!hasReceivedData) {
+        // Connection failed, show error
+        showError('Failed to connect. Please try again.');
+      } else {
+        showError('Connection interrupted. Please try again.');
+      }
+      
+      eventSource.close();
+      reject(new Error('SSE connection error'));
+    });
+
+    // Timeout after 60 seconds
+    setTimeout(() => {
+      if (eventSource.readyState !== EventSource.CLOSED) {
+        cleanup();
+        eventSource.close();
+        hideProgress();
+        showError('Request timed out. Please try again.');
+        reject(new Error('Timeout'));
+      }
+    }, 60000);
+  });
+}
+
+// Recommendation functions
+async function getSimilarRecommendations() {
+  try {
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/similar/stream`,
+      'similar-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'similar-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
 async function getContrastingRecommendations() {
-  showLoading('Loading recommendations...', 'contrasting-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/contrasting`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'contrasting-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/contrasting/stream`,
+      'contrasting-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'contrasting-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
 async function getBlindspots() {
-  showLoading('Analyzing your reading patterns...', 'blindspots-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/blindspots`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.analysis) {
-      displayBlindSpotsAnalysis(data.analysis, 'blindspots-results');
-    } else {
-      showError('Failed to get analysis');
-    }
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/blindspots/stream`,
+      'blindspots-results',
+      (data) => {
+        if (data.analysis) {
+          displayBlindSpotsAnalysis(data.analysis, 'blindspots-results');
+        } else {
+          showError('Failed to get analysis');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting analysis:', error);
-    showError('Failed to get analysis. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 
@@ -968,26 +1152,22 @@ async function getCustomRecommendations() {
     return;
   }
 
-  showLoading('Loading recommendations...', 'custom-results');
   try {
-    const response = await fetch(`${API_BASE}/recommendations/custom`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ criteria }),
-    });
-
-    const data = await response.json();
-    hideLoading();
-
-    if (data.recommendations) {
-      displayRecommendations(data.recommendations, 'custom-results');
-    } else {
-      showError('Failed to get recommendations');
-    }
+    const encodedCriteria = encodeURIComponent(criteria);
+    await fetchRecommendationsWithSSE(
+      `${API_BASE}/recommendations/custom/stream?criteria=${encodedCriteria}`,
+      'custom-results',
+      (data) => {
+        if (data.recommendations) {
+          displayRecommendations(data.recommendations, 'custom-results');
+        } else {
+          showError('Failed to get recommendations');
+        }
+      }
+    );
   } catch (error) {
-    hideLoading();
     console.error('Error getting recommendations:', error);
-    showError('Failed to get recommendations. Please try again.');
+    // Error already shown by fetchRecommendationsWithSSE
   }
 }
 

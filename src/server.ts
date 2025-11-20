@@ -196,6 +196,12 @@ app.post('/api/recommendations/contrasting', asyncHandler(recommendationControll
 app.post('/api/recommendations/blindspots', asyncHandler(recommendationController.getBlindspots));
 app.post('/api/recommendations/custom', asyncHandler(recommendationController.getCustom));
 
+// SSE Streaming Recommendation Routes
+app.get('/api/recommendations/similar/stream', asyncHandler(recommendationController.getSimilarStream));
+app.get('/api/recommendations/contrasting/stream', asyncHandler(recommendationController.getContrastingStream));
+app.get('/api/recommendations/blindspots/stream', asyncHandler(recommendationController.getBlindspotStream));
+app.get('/api/recommendations/custom/stream', asyncHandler(recommendationController.getCustomStream));
+
 // ========== Admin Routes ==========
 app.get('/api/admin/users', asyncHandler(adminController.listUsers));
 app.delete('/api/admin/users/:userId', asyncHandler(adminController.deleteUser));
