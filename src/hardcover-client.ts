@@ -138,6 +138,98 @@ export class HardcoverClient {
   }
 
   /**
+   * Normalize string for comparison (remove punctuation, extra spaces, lowercase)
+   */
+  private normalizeForComparison(str: string): string {
+    return str.toLowerCase()
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Find the best match from a list of candidates using weighted scoring
+   */
+  private findBestMatch(
+    candidates: HardcoverBook[],
+    searchTitle: string,
+    searchAuthor: string
+  ): HardcoverBook | null {
+    if (!candidates || candidates.length === 0) {
+      return null;
+    }
+
+    const normalizedSearchTitle = this.normalizeForComparison(searchTitle);
+    const normalizedSearchAuthor = this.normalizeForComparison(searchAuthor);
+
+    const scoredCandidates = candidates.map((book) => {
+      let score = 0;
+      const bookTitle = this.normalizeForComparison(book.title);
+      const bookAuthors =
+        book.contributions?.map((c: any) => this.normalizeForComparison(c.author?.name || '')) || [];
+      
+      // Check for author match (fuzzy)
+      const isAuthorMatch =
+        !searchAuthor ||
+        bookAuthors.some(
+          (a: string) =>
+            a.includes(normalizedSearchAuthor) ||
+            normalizedSearchAuthor.includes(a)
+        );
+
+      // 1. Author Match (Critical)
+      if (isAuthorMatch) {
+        score += 1000;
+      }
+
+      // 2. Title Matching
+      if (bookTitle === normalizedSearchTitle) {
+        score += 100; // Exact match
+      } else if (bookTitle.startsWith(normalizedSearchTitle)) {
+        score += 75; // Starts with (e.g. "Deep Work: Rules...")
+      } else if (bookTitle.includes(normalizedSearchTitle)) {
+        score += 50; // Contains
+      } else if (normalizedSearchTitle.includes(bookTitle)) {
+        score += 50; // Reverse contains
+      }
+
+      // 3. Collection/Box Set Penalty
+      // If the book title suggests a collection but the search title doesn't
+      const collectionKeywords = ['collection', 'box set', 'bundle', 'series', 'complete set', ' 4 books', ' 3 books'];
+      const isCollection = collectionKeywords.some(word => bookTitle.includes(word));
+      const searchIsCollection = collectionKeywords.some(word => normalizedSearchTitle.includes(word));
+
+      if (isCollection && !searchIsCollection) {
+        score -= 50;
+      }
+
+      // 4. Popularity Bonus (Tie-breaker)
+      // Logarithmic scale to prevent popularity from overwhelming title relevance
+      if (book.users_count) {
+        score += Math.log10(book.users_count + 1) * 5;
+      }
+
+      return { book, score };
+    });
+
+    // Sort by score descending
+    scoredCandidates.sort((a, b) => b.score - a.score);
+
+    if (this.debugMode) {
+      this.log(
+        'Scored matches:',
+        scoredCandidates.slice(0, 3).map((c) => ({
+          title: c.book.title,
+          score: c.score,
+          authorMatch: c.score >= 1000,
+        }))
+      );
+    }
+
+    return scoredCandidates[0].book;
+  }
+
+  /**
    * Search for a book by title and author
    */
   async searchBook(title: string, author: string): Promise<HardcoverBook | null> {
@@ -149,9 +241,6 @@ export class HardcoverClient {
     }
 
     this.log(`Searching for book: "${title}" by ${author}`);
-
-    // Use Hardcover's search endpoint which uses Typesense
-    const searchQuery = author ? `${title} ${author}` : title;
 
     const query = `
       query SearchBooks($searchQuery: String!, $perPage: Int!) {
@@ -166,14 +255,25 @@ export class HardcoverClient {
     `;
 
     try {
-      const data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
+      // Strategy 1: Search with Title + Author
+      let searchQuery = author ? `${title} ${author}` : title;
+      let data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
         searchQuery,
-        perPage: 10,
+        perPage: 15,
       });
 
-      // The search results have this structure:
-      // data.search.results.hits[] where each hit has a .document property
-      const hits = data.search?.results?.hits || [];
+      let hits = data.search?.results?.hits || [];
+
+      // Strategy 2: Fallback to Title only if no results
+      if (hits.length === 0 && author) {
+        this.log('No results for specific search, trying title only');
+        searchQuery = title;
+        data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
+          searchQuery,
+          perPage: 15,
+        });
+        hits = data.search?.results?.hits || [];
+      }
 
       if (hits.length === 0) {
         this.log('No books found');
@@ -189,32 +289,20 @@ export class HardcoverClient {
           id: parseInt(book.id), // ID comes as string, convert to number
           title: book.title,
           contributions: book.contributions || [],
+          users_count: book.users_count,
+          likes_count: book.likes_count,
         };
       });
 
-      // Exact title match first
-      let bestMatch = books.find(b =>
-        b.title.toLowerCase() === title.toLowerCase()
-      );
+      const bestMatch = this.findBestMatch(books, title, author);
 
-      // If no exact match, try author matching
-      if (!bestMatch && author) {
-        bestMatch = books.find(b => {
-          const bookAuthors = b.contributions?.map((c: any) => c.author?.name.toLowerCase()) || [];
-          return bookAuthors.some((a: any) =>
-            a?.includes(author.toLowerCase()) || author.toLowerCase().includes(a || '')
-          );
-        });
+      if (bestMatch) {
+        this.log('Best match:', bestMatch.title);
+        this.setCache(cacheKey, bestMatch);
+        return bestMatch;
       }
-
-      // Otherwise just take first result
-      if (!bestMatch) {
-        bestMatch = books[0];
-      }
-
-      this.log('Best match:', bestMatch);
-      this.setCache(cacheKey, bestMatch);
-      return bestMatch;
+      
+      return null;
     } catch (error) {
       this.log('Search error:', error);
       return null;
@@ -234,14 +322,12 @@ export class HardcoverClient {
 
     this.log(`Getting details for book: "${title}" by ${author}`);
 
-    const searchQuery = author ? `${title} ${author}` : title;
-
     const query = `
       query BookDetails($searchQuery: String!) {
         search(
           query: $searchQuery
           query_type: "Book"
-          per_page: 5
+          per_page: 15
         ) {
           results
         }
@@ -249,11 +335,23 @@ export class HardcoverClient {
     `;
 
     try {
-      const data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
+      // Strategy 1: Search with Title + Author
+      let searchQuery = author ? `${title} ${author}` : title;
+      let data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
         searchQuery,
       });
 
-      const hits = data.search?.results?.hits || [];
+      let hits = data.search?.results?.hits || [];
+
+      // Strategy 2: Fallback to Title only if no results
+      if (hits.length === 0 && author) {
+        this.log('No results for specific search, trying title only');
+        searchQuery = title;
+        data = await this.query<{ search: { results: { hits: any[] } } }>(query, {
+          searchQuery,
+        });
+        hits = data.search?.results?.hits || [];
+      }
 
       if (hits.length === 0) {
         return null;
@@ -278,22 +376,14 @@ export class HardcoverClient {
       });
 
       // Find best match
-      let bestMatch = books.find(b =>
-        b.title.toLowerCase() === title.toLowerCase()
-      );
+      const bestMatch = this.findBestMatch(books, title, author);
 
-      if (!bestMatch && author) {
-        bestMatch = books.find(b => {
-          const bookAuthors = b.contributions?.map((c: any) => c.author?.name.toLowerCase()) || [];
-          return bookAuthors.some((a: any) =>
-            a?.includes(author.toLowerCase()) || author.toLowerCase().includes(a || '')
-          );
-        });
+      if (bestMatch) {
+        this.setCache(cacheKey, bestMatch);
+        return bestMatch;
       }
-
-      const result = bestMatch || books[0];
-      this.setCache(cacheKey, result);
-      return result;
+      
+      return null;
     } catch (error) {
       this.log('Get details error:', error);
       return null;

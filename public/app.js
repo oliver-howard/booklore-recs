@@ -791,6 +791,13 @@ function formatReasoning(reasoning = '') {
   return escapeHtml(reasoning).replace(/\n/g, '<br>');
 }
 
+function escapeForOnclick(str = '') {
+  return String(str)
+    .replace(/\\/g, '\\\\') // Escape backslashes first
+    .replace(/'/g, "\\'")   // Escape single quotes for JS string
+    .replace(/"/g, '&quot;');// Escape double quotes for HTML attribute
+}
+
 function buildRecommendationActions(rec) {
   const titleData = encodeURIComponent(rec.title || '');
   const authorData = encodeURIComponent(rec.author || 'Unknown');
@@ -798,11 +805,16 @@ function buildRecommendationActions(rec) {
   const amazonData = rec.amazonUrl ? encodeURIComponent(rec.amazonUrl) : '';
   const coverData = rec.coverUrl ? encodeURIComponent(rec.coverUrl) : '';
 
+  // Use escapeForOnclick for the inline JS arguments
+  const jsTitle = escapeForOnclick(rec.title || '');
+  const jsAuthor = escapeForOnclick(rec.author || '');
+  const jsAmazon = escapeForOnclick(rec.amazonUrl || '');
+
   return `
     <div class="recommendation-actions">
       <button
         class="btn btn-sm btn-primary"
-        onclick="fetchBookDetails('${escapeHtml(rec.title)}', '${escapeHtml(rec.author)}', '${escapeHtml(rec.amazonUrl || '')}', this)"
+        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
       >
         View Details
       </button>
@@ -821,16 +833,17 @@ function buildRecommendationActions(rec) {
   `;
 }
 
-function renderRecommendationMarkup(rec, index) {
+function renderRecommendationMarkup(rec, index, prefix = '') {
   const safeTitle = escapeHtml(rec.title || 'Untitled');
   const safeAuthor = escapeHtml(rec.author || 'Unknown');
   const safeReasoning = formatReasoning(rec.reasoning || '');
+  const imgId = prefix ? `${prefix}-cover-${index}` : `cover-${index}`;
 
   return `
     <li class="recommendation-item">
       <div class="recommendation-layout">
           <div class="recommendation-cover-container">
-            <img id="cover-${index}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+            <img id="${imgId}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
               data-title="${safeTitle}" 
               data-author="${safeAuthor}" 
               alt="Cover of ${safeTitle}" 
@@ -1205,14 +1218,15 @@ function displayRecommendations(recommendations, elementId) {
 
   let html = '<ol class="recommendations-list">';
   filtered.forEach((rec, index) => {
-    html += renderRecommendationMarkup(rec, index);
+    // Use elementId as prefix to ensure unique IDs across tabs
+    html += renderRecommendationMarkup(rec, index, elementId);
   });
   html += '</ol>';
   resultsElement.innerHTML = html;
   
   // Lazy load covers
   filtered.forEach((rec, index) => {
-    fetchCoverImage(rec.title, rec.author, `cover-${index}`);
+    fetchCoverImage(rec.title, rec.author, `${elementId}-cover-${index}`);
   });
 }
 
@@ -1240,46 +1254,63 @@ async function fetchCoverImage(title, author, imgId) {
 
 function displayBlindSpotsAnalysis(analysis, elementId) {
   const resultsElement = document.getElementById(elementId);
+  const coversToLoad = [];
 
   let html = '<div class="analysis-container">';
 
   // Patterns
-  html += '<div class="analysis-section"><h3>Reading Patterns</h3><ul>';
+  html += '<div class="analysis-section"><h3>Reading Patterns</h3><div class="patterns-grid">';
   analysis.patterns.forEach(pattern => {
-    html += `<li>${pattern}</li>`;
+    html += `<div class="pattern-tag">${pattern}</div>`;
   });
-  html += '</ul></div>';
+  html += '</div></div>';
 
   // Blind Spots
-  html += '<div class="analysis-section"><h3>Blind Spots & Recommendations</h3>';
+  html += '<div class="analysis-section"><h3>Blind Spots & Recommendations</h3><div class="blind-spots-grid">';
   analysis.blindSpots.forEach((blindSpot, index) => {
     html += `
       <div class="blind-spot-card">
-        <h4>${index + 1}. ${blindSpot.category}</h4>
-        <p>${blindSpot.description}</p>
+        <div class="blind-spot-header">
+            <div class="blind-spot-number">${String(index + 1).padStart(2, '0')}</div>
+            <div class="blind-spot-info">
+                <h4>${blindSpot.category}</h4>
+                <p>${blindSpot.description}</p>
+            </div>
+        </div>
         <div class="blind-spot-recommendations">
-          <h5>Recommended books:</h5>
+          <h5>Recommended to bridge this gap:</h5>
     `;
 
     html += '<ol class="recommendations-list nested">';
     blindSpot.recommendations.forEach((rec, recIndex) => {
-      html += renderRecommendationMarkup(rec, recIndex);
+      const prefix = `blindspots-${index}`;
+      html += renderRecommendationMarkup(rec, recIndex, prefix);
+      coversToLoad.push({
+        title: rec.title,
+        author: rec.author,
+        id: `${prefix}-cover-${recIndex}`
+      });
     });
     html += '</ol>';
 
     html += '</div></div>';
   });
-  html += '</div>';
+  html += '</div></div>';
 
   // Suggested Topics
-  html += '<div class="analysis-section"><h3>Suggested Topics to Explore</h3><ul>';
+  html += '<div class="analysis-section"><h3>Suggested Topics to Explore</h3><div class="topics-grid">';
   analysis.suggestedTopics.forEach(topic => {
-    html += `<li>${topic}</li>`;
+    html += `<div class="topic-tag">${topic}</div>`;
   });
-  html += '</ul></div>';
+  html += '</div></div>';
 
   html += '</div>';
   resultsElement.innerHTML = html;
+
+  // Lazy load covers
+  coversToLoad.forEach(item => {
+    fetchCoverImage(item.title, item.author, item.id);
+  });
 }
 
 function displayStats(stats, elementId) {
@@ -1622,7 +1653,7 @@ function displayTBR(books, elementId) {
             <div class="recommendation-actions">
               <button
                 class="btn btn-sm btn-primary"
-                onclick="fetchBookDetails('${safeTitle}', '${safeAuthor}', '${escapeHtml(book.amazonUrl || '')}', this)"
+                onclick="fetchBookDetails('${escapeForOnclick(book.title)}', '${escapeForOnclick(book.author)}', '${escapeForOnclick(book.amazonUrl || '')}', this)"
               >
                 View Details
               </button>
