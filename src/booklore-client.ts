@@ -1,5 +1,6 @@
 import { Book, UserReading, UserProfile } from './types.js';
 import { config } from './config.js';
+import { logger } from './logger.js';
 
 export class BookLoreClient {
   private baseUrl: string;
@@ -15,9 +16,9 @@ export class BookLoreClient {
     this.debug = process.env.DEBUG === 'true';
   }
 
-  private log(...args: any[]) {
+  private log(message: string, context?: any) {
     if (this.debug) {
-      console.log('[DEBUG]', ...args);
+      logger.debug(`[BookLoreClient] ${message}`, context);
     }
   }
 
@@ -43,7 +44,12 @@ export class BookLoreClient {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.log(`Auth error body: ${errorBody}`);
+        logger.error('BookLore authentication failed', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorBody,
+          url: `${this.baseUrl}/auth/login`
+        });
         throw new Error(`Authentication failed: ${response.statusText}`);
       }
 
