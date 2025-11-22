@@ -1531,9 +1531,11 @@ function displayStats(stats, elementId) {
 }
 
 function renderBarChart(data, selector, label) {
-  // Set dimensions
-  const margin = { top: 20, right: 30, bottom: 40, left: 120 };
-  const width = 500 - margin.left - margin.right;
+  // Set dimensions - use container width for responsiveness
+  const margin = { top: 20, right: 60, bottom: 40, left: 120 }; // Increased right margin for labels
+  const container = document.querySelector(selector);
+  const containerWidth = container.clientWidth;
+  const width = containerWidth - margin.left - margin.right;
   const height = 300 - margin.top - margin.bottom;
   const { axisText, axisLine } = getChartColors();
 
@@ -1545,9 +1547,10 @@ function renderBarChart(data, selector, label) {
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // X axis
+  // X axis - add 10% padding to prevent cutoff
+  const maxValue = d3.max(data, d => d.count);
   const x = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.count)])
+    .domain([0, maxValue * 1.1]) // Add 10% padding
     .range([0, width]);
   
   const xAxis = svg.append("g")
