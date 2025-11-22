@@ -186,6 +186,49 @@
             </div>
           </div>
 
+          <!-- Hardcover Integration -->
+          <div class="settings-section glass-panel">
+            <div class="section-header clickable-header" onclick="toggleHardcoverSection()">
+              <div class="header-content">
+                <h3>Hardcover Integration</h3>
+                <p class="settings-description">
+                  Connect your Hardcover account to sync your reading history.
+                  <a href="https://hardcover.app/account/api" target="_blank" class="link-text">Get your API Key here</a>.
+                </p>
+              </div>
+              <div class="header-actions">
+                <div id="hardcover-status" class="status-indicator">
+                  <span id="hardcover-status-text">Not connected</span>
+                </div>
+                <button type="button" class="icon-button toggle-icon-hardcover" aria-label="Toggle section">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="hardcover-content" class="collapsible-content hidden">
+              <form id="hardcover-form" onsubmit="saveHardcoverCredentials(event)" class="settings-form">
+                <div class="form-group">
+                  <label for="hardcover-api-key">Hardcover API Key</label>
+                  <input
+                    type="password"
+                    id="hardcover-api-key"
+                    placeholder="Enter your Hardcover API Key"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="settings-buttons">
+                  <button type="submit" class="btn btn-primary">Save API Key</button>
+                  <button type="button" class="btn btn-secondary" onclick="removeHardcoverCredentials()">
+                    Remove Connection
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
 
 
           <!-- Data Source Preference -->
@@ -207,6 +250,9 @@
               </button>
               <button type="button" class="toggle-option" data-source="goodreads" onclick="setDataSourcePreference('goodreads')">
                 Goodreads
+              </button>
+              <button type="button" class="toggle-option" data-source="hardcover" onclick="setDataSourcePreference('hardcover')">
+                Hardcover
               </button>
             </div>
             <p id="data-source-summary" class="settings-description small-text"></p>

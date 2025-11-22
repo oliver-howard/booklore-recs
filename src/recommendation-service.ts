@@ -60,7 +60,8 @@ export class RecommendationService {
     
     onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
-    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
+    const sourceName = source === 'booklore' ? 'BookLore' : source === 'hardcover' ? 'Hardcover' : 'Goodreads';
+    console.log(`\nAnalyzing ${readings.length} books from ${sourceName}...\n`);
 
     switch (type) {
       case 'similar':
@@ -109,7 +110,8 @@ export class RecommendationService {
     const source = this.determineDataSource();
     onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
-    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
+    const sourceName = source === 'booklore' ? 'BookLore' : source === 'hardcover' ? 'Hardcover' : 'Goodreads';
+    console.log(`\nAnalyzing ${readings.length} books from ${sourceName}...\n`);
 
     const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max, onProgress);
     return recommendations;
@@ -262,26 +264,39 @@ export class RecommendationService {
     return !!(this.guestReadings && this.guestReadings.length > 0);
   }
 
-  private determineDataSource(): 'booklore' | 'goodreads' {
+  private hasHardcoverCredentials(): boolean {
+    return !!this.hardcoverClient;
+  }
+
+  private determineDataSource(): 'booklore' | 'goodreads' | 'hardcover' {
     const hasBookLore = this.hasBookLoreCredentials();
     const hasGoodreads = this.hasGoodreadsReadings();
+    const hasHardcover = this.hasHardcoverCredentials();
     const preference = this.dataSourcePreference || 'auto';
 
     if (preference === 'booklore') {
       if (hasBookLore) return 'booklore';
       if (hasGoodreads) return 'goodreads';
+      if (hasHardcover) return 'hardcover';
     } else if (preference === 'goodreads') {
       if (hasGoodreads) return 'goodreads';
       if (hasBookLore) return 'booklore';
-    } else {
+      if (hasHardcover) return 'hardcover';
+    } else if (preference === 'hardcover') {
+      if (hasHardcover) return 'hardcover';
       if (hasBookLore) return 'booklore';
+      if (hasGoodreads) return 'goodreads';
+    } else {
+      // auto: prioritize BookLore > Hardcover > Goodreads
+      if (hasBookLore) return 'booklore';
+      if (hasHardcover) return 'hardcover';
       if (hasGoodreads) return 'goodreads';
     }
 
-    throw new Error('No reading history configured. Please connect BookLore or upload a Goodreads CSV.');
+    throw new Error('No reading history configured. Please connect a data source (BookLore, Hardcover, or Goodreads).');
   }
 
-  private async getReadingsForSource(source: 'booklore' | 'goodreads'): Promise<UserReading[]> {
+  private async getReadingsForSource(source: 'booklore' | 'goodreads' | 'hardcover'): Promise<UserReading[]> {
     if (source === 'booklore') {
       if (!this.bookloreClient) {
         throw new Error('BookLore credentials not configured.');
@@ -289,6 +304,17 @@ export class RecommendationService {
       const readings = await this.bookloreClient.getUserReadingHistory();
       if (!readings || readings.length === 0) {
         throw new Error('No reading history found in BookLore. Please read and rate some books first.');
+      }
+      return readings;
+    }
+
+    if (source === 'hardcover') {
+      if (!this.hardcoverClient) {
+        throw new Error('Hardcover API key not configured.');
+      }
+      const readings = await this.hardcoverClient.getUserReadingHistory();
+      if (!readings || readings.length === 0) {
+        throw new Error('No reading history found in Hardcover. Please mark some books as read first.');
       }
       return readings;
     }

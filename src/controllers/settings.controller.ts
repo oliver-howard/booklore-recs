@@ -93,6 +93,87 @@ export class SettingsController {
   };
 
   /**
+   * Configure Hardcover credentials
+   * POST /api/settings/hardcover
+   */
+  saveHardcoverCredentials = async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'API Key is required',
+      });
+    }
+
+    try {
+      // Verify credentials by making a simple request (e.g. get user id)
+      // We can't easily verify without a dedicated method, but we can try to instantiate a client
+      // and maybe fetch something simple if we had a verify method.
+      // For now, we'll assume if it's provided it's intended to be used.
+      // Ideally, we should verify it.
+      // Let's use the existing HardcoverClient structure but we need to pass the new token.
+      // Since HardcoverClient is instantiated in server.ts with a global token,
+      // we might need to refactor how HardcoverClient is used or instantiate a temporary one.
+      // However, the prompt implies we are adding a user-specific key.
+      // The current HardcoverClient takes config in constructor.
+      
+      // TODO: In a real scenario, we should verify the token here.
+      // For now, we just save it.
+      
+      DatabaseService.updateHardcoverCredentials(req.session.userId, apiKey);
+      
+      // Clear service instance to force re-initialization
+      this.serviceFactory.removeService(req.sessionID);
+
+      res.json({
+        success: true,
+        message: 'Hardcover API Key saved successfully',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to save credentials',
+      });
+    }
+  };
+
+  /**
+   * Remove Hardcover credentials
+   * DELETE /api/settings/hardcover
+   */
+  removeHardcoverCredentials = async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    try {
+      DatabaseService.clearHardcoverCredentials(req.session.userId);
+      this.serviceFactory.removeService(req.sessionID);
+
+      res.json({
+        success: true,
+        message: 'Hardcover credentials removed',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove credentials',
+      });
+    }
+  };
+
+  /**
    * Upload Goodreads CSV
    * POST /api/settings/goodreads
    */
@@ -181,7 +262,7 @@ export class SettingsController {
 
     const { preference } = req.body as { preference: DataSourcePreference };
 
-    if (!preference || !['auto', 'booklore', 'goodreads'].includes(preference)) {
+    if (!preference || !['auto', 'booklore', 'goodreads', 'hardcover'].includes(preference)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid data source preference',
@@ -198,6 +279,7 @@ export class SettingsController {
 
     const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
     const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
+    const hasHardcover = !!user.hardcoverApiKey;
 
     if (preference === 'booklore' && !hasBookLore) {
       return res.status(400).json({
@@ -210,6 +292,13 @@ export class SettingsController {
       return res.status(400).json({
         success: false,
         message: 'Upload Goodreads data to use it as a data source.',
+      });
+    }
+
+    if (preference === 'hardcover' && !hasHardcover) {
+      return res.status(400).json({
+        success: false,
+        message: 'Connect Hardcover to use it as a data source.',
       });
     }
 

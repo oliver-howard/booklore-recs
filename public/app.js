@@ -6,6 +6,7 @@ const API_BASE = '/api';
 let isAuthenticated = false;
 let hasReadingHistory = false;
 let hasBookLore = false;
+let hasHardcover = false;
 let hasGoodreads = false;
 let isAdmin = false;
 let notificationTimeout;
@@ -92,6 +93,7 @@ async function checkAuthStatus() {
       isAuthenticated = true;
       hasReadingHistory = data.hasReadingHistory || false;
       hasBookLore = data.hasBookLore || false;
+      hasHardcover = data.hasHardcover || false;
       hasGoodreads = data.hasGoodreads || false;
       isAdmin = !!data.isAdmin;
       dataSourcePreference = data.dataSourcePreference || 'auto';
@@ -144,6 +146,7 @@ async function checkAuthStatus() {
       isAuthenticated = false;
       hasReadingHistory = false;
       hasBookLore = false;
+      hasHardcover = false;
       hasGoodreads = false;
       isAdmin = false;
       dataSourcePreference = 'auto';
@@ -217,6 +220,16 @@ function updateSettingsUI(data) {
     bookloreStatus.style.color = 'var(--text-secondary)';
   }
 
+  // Update Hardcover status
+  const hardcoverStatus = document.getElementById('hardcover-status-text');
+  if (data.hasHardcover) {
+    hardcoverStatus.textContent = '✓ Connected';
+    hardcoverStatus.style.color = 'var(--success-color, #22c55e)';
+  } else {
+    hardcoverStatus.textContent = 'Not connected';
+    hardcoverStatus.style.color = 'var(--text-secondary)';
+  }
+
   // Update Goodreads status
   const goodreadsStatus = document.getElementById('goodreads-status-text');
   if (data.hasGoodreads) {
@@ -242,6 +255,27 @@ function updateSettingsUI(data) {
   
   // Update toggle icon state
   updateBookLoreToggleIcon();
+  updateHardcoverToggleIcon();
+}
+
+function toggleHardcoverSection() {
+  const content = document.getElementById('hardcover-content');
+  if (content) {
+    content.classList.toggle('hidden');
+    updateHardcoverToggleIcon();
+  }
+}
+
+function updateHardcoverToggleIcon() {
+  const content = document.getElementById('hardcover-content');
+  const icon = document.querySelector('.toggle-icon-hardcover svg');
+  if (content && icon) {
+    if (content.classList.contains('hidden')) {
+      icon.style.transform = 'rotate(0deg)';
+    } else {
+      icon.style.transform = 'rotate(180deg)';
+    }
+  }
 }
 
 function toggleBookLoreSection() {
@@ -398,11 +432,16 @@ function dataSourceSummaryText() {
   if (dataSourcePreference === 'goodreads') {
     return 'Currently using Goodreads data for recommendations.';
   }
-  if (hasBookLore) {
-    return 'Using BookLore data when available, otherwise falling back to Goodreads.';
+  if (dataSourcePreference === 'hardcover') {
+    return 'Currently using Hardcover data for recommendations.';
   }
+  if (hasBookLore) {
+    return 'Using BookLore data when available, otherwise falling back to Goodreads.'  }
   if (hasGoodreads) {
     return 'Using your Goodreads import for recommendations.';
+  }
+  if (hasHardcover) {
+    return 'Using your Hardcover reading history for recommendations.';
   }
   return 'Connect BookLore or upload Goodreads data to begin.';
 }
@@ -680,6 +719,64 @@ async function removeBookLoreCredentials() {
   }
 }
 
+async function saveHardcoverCredentials(event) {
+  event.preventDefault();
+
+  const apiKey = document.getElementById('hardcover-api-key').value.trim();
+
+  if (!apiKey) {
+    showNotification('Please enter an API Key', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/hardcover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Hardcover API Key saved successfully!', 'success');
+      // Clear the form
+      document.getElementById('hardcover-form').reset();
+      // Refresh auth status to update UI
+      await checkAuthStatus();
+    } else {
+      showNotification(data.message || 'Failed to save API Key', 'error');
+    }
+  } catch (error) {
+    console.error('Error saving Hardcover credentials:', error);
+    showNotification('Failed to save API Key. Please try again.', 'error');
+  }
+}
+
+async function removeHardcoverCredentials() {
+  if (!confirm('Remove Hardcover connection? This will not delete your reading history.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/hardcover`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Hardcover connection removed', 'success');
+      await checkAuthStatus();
+    } else {
+      showNotification(data.message || 'Failed to remove connection', 'error');
+    }
+  } catch (error) {
+    console.error('Error removing Hardcover credentials:', error);
+    showNotification('Failed to remove connection. Please try again.', 'error');
+  }
+}
+
 async function uploadGoodreadsCSV() {
   const fileInput = document.getElementById('settings-csv-input');
   const file = fileInput.files[0];
@@ -754,6 +851,7 @@ async function handleLogout() {
     isAuthenticated = false;
     hasReadingHistory = false;
     hasBookLore = false;
+    hasHardcover = false;
     hasGoodreads = false;
     clearAppState();
     showLoginModal();
