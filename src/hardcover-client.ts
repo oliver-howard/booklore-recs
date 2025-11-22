@@ -703,6 +703,7 @@ ${finishedAtField}          }
         ) {
           status_id
           rating
+          review
           book {
             id
             title
@@ -753,10 +754,10 @@ ${finishedAtField}          }
             description: book.description,
             publishedDate: book.release_date,
             coverImageUrl: book.image?.url,
-            genres: undefined, // Genre data not available through user_books endpoint
           },
           rating: item.rating ? item.rating * 2 : undefined, // Convert 5-star to 10-point
           status: 'read',
+          review: item.review || undefined,
           finishedAt: undefined,
         };
 
