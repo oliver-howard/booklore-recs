@@ -10,9 +10,10 @@ import { logger } from '../logger.js';
  */
 export class ServiceFactory {
   private sessionServices: Map<string, RecommendationService> = new Map();
+  private globalHardcoverClient: HardcoverClient;
 
-  constructor() {
-    // No longer needs global HardcoverClient
+  constructor(globalHardcoverClient: HardcoverClient) {
+    this.globalHardcoverClient = globalHardcoverClient;
   }
 
   /**
@@ -52,13 +53,13 @@ export class ServiceFactory {
         userId: user.id,
       });
 
-      // Create user-specific HardcoverClient if user has API key
+      // Create user-specific HardcoverClient if user has API key (for reading history only)
       let userHardcoverClient: HardcoverClient | undefined;
       if (user.hardcoverApiKey) {
         userHardcoverClient = new HardcoverClient({
           apiToken: user.hardcoverApiKey,
         });
-        logger.debug('Created user-specific HardcoverClient', {
+        logger.debug('Created user-specific HardcoverClient for reading history', {
           userId: user.id,
         });
       }
@@ -70,7 +71,8 @@ export class ServiceFactory {
         user.booklorePassword,
         user.goodreadsReadings,
         user.dataSourcePreference,
-        userHardcoverClient
+        userHardcoverClient, // User's client for reading history
+        this.globalHardcoverClient // Global client for book searches
       );
 
       // Only initialize (authenticate with BookLore) if credentials are configured

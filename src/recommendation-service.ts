@@ -15,7 +15,8 @@ import { config } from './config.js';
 
 export class RecommendationService {
   private bookloreClient?: BookLoreClient;
-  private hardcoverClient?: HardcoverClient;
+  private hardcoverClient?: HardcoverClient; // User-specific client for reading history only
+  private globalHardcoverClient?: HardcoverClient; // Global client for book metadata searches
   private aiService: AIService;
   private guestReadings?: UserReading[];
   private dataSourcePreference: DataSourcePreference;
@@ -26,7 +27,8 @@ export class RecommendationService {
     booklorePassword?: string,
     guestReadings?: UserReading[],
     dataSourcePreference: DataSourcePreference = 'auto',
-    hardcoverClient?: HardcoverClient
+    userHardcoverClient?: HardcoverClient, // For reading history
+    globalHardcoverClient?: HardcoverClient // For book searches
   ) {
     if (bookloreUsername && booklorePassword) {
       this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
@@ -34,7 +36,8 @@ export class RecommendationService {
     this.guestReadings = guestReadings;
     this.dataSourcePreference = dataSourcePreference || 'auto';
     this.aiService = new AIService(aiConfig);
-    this.hardcoverClient = hardcoverClient;
+    this.hardcoverClient = userHardcoverClient;
+    this.globalHardcoverClient = globalHardcoverClient;
   }
 
   /**
@@ -330,7 +333,8 @@ export class RecommendationService {
    * Enrich recommendations with cover images from Hardcover
    */
   private async enrichWithCovers(recommendations: Recommendation[]): Promise<Recommendation[]> {
-    if (!this.hardcoverClient) {
+    // Use global Hardcover client for book metadata searches
+    if (!this.globalHardcoverClient) {
       return recommendations;
     }
 
@@ -338,7 +342,7 @@ export class RecommendationService {
     const enriched = await Promise.all(
       recommendations.map(async (rec) => {
         try {
-          const book = await this.hardcoverClient!.getBookDetails(rec.title, rec.author);
+          const book = await this.globalHardcoverClient!.getBookDetails(rec.title, rec.author);
           if (book && book.images && book.images.length > 0) {
             return { ...rec, coverUrl: book.images[0].url };
           }

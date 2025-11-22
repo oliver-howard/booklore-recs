@@ -146,15 +146,14 @@ declare module 'express-session' {
   }
 }
 
-// Initialize HardcoverClient for TBR synchronization
-// Note: This is used for the global Hardcover integration (book details, etc.)
-// User-specific Hardcover clients are created per-user in ServiceFactory
+// Initialize HardcoverClient for global use (book details, TBR, etc.)
+// This client uses the .env API key and is shared across all users for public book data
 const hardcoverClient = new HardcoverClient({
   apiToken: process.env.HARDCOVER_API_TOKEN || '',
 });
 
 // Initialize Service Factory and Controllers
-const serviceFactory = new ServiceFactory();
+const serviceFactory = new ServiceFactory(hardcoverClient);
 const authController = new AuthController(serviceFactory);
 const recommendationController = new RecommendationController(serviceFactory);
 const settingsController = new SettingsController(serviceFactory);
