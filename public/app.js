@@ -931,14 +931,28 @@ function buildRecommendationActions(rec) {
   const jsAuthor = escapeForOnclick(rec.author || '');
   const jsAmazon = escapeForOnclick(rec.amazonUrl || '');
 
-  return `
-    <div class="recommendation-actions">
+  const inTBR = isInTBR(rec);
+  
+  let tbrButtonHtml;
+  
+  if (inTBR) {
+    // Find the book ID from cache if possible, though removeFromTBR usually needs ID
+    // Since we store title/author in TBR, we might need to look it up or pass title/author to remove
+    // For now, let's assume we can find it or use a different removal strategy.
+    // Actually, removeFromTBR takes an ID. Let's find the ID from the cache.
+    const tbrBook = tbrCache.find(b => b.title === rec.title && b.author === rec.author);
+    const bookId = tbrBook ? tbrBook.id : '';
+    
+    tbrButtonHtml = `
       <button
-        class="btn btn-sm btn-primary"
-        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
+        class="btn btn-sm btn-danger"
+        onclick="removeFromTBR(${bookId}, this)"
       >
-        View Details
+        Remove from TBR
       </button>
+    `;
+  } else {
+    tbrButtonHtml = `
       <button
         class="btn btn-sm btn-secondary"
         data-title="${titleData}"
@@ -950,6 +964,18 @@ function buildRecommendationActions(rec) {
       >
         Add to TBR
       </button>
+    `;
+  }
+
+  return `
+    <div class="recommendation-actions">
+      <button
+        class="btn btn-sm btn-primary"
+        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
+      >
+        View Details
+      </button>
+      ${tbrButtonHtml}
     </div>
   `;
 }
@@ -995,7 +1021,7 @@ function addRecommendationToTBR(button) {
     amazonUrl: button.dataset.amazonUrl ? decodeURIComponent(button.dataset.amazonUrl) : undefined,
     coverUrl: button.dataset.coverUrl ? decodeURIComponent(button.dataset.coverUrl) : undefined,
   };
-  addToTBR(book);
+  addToTBR(book, button);
 }
 
 // Error handling
@@ -1667,7 +1693,7 @@ async function loadTBR(showLoader = true, refreshHero = true) {
   }
 }
 
-async function addToTBR(book) {
+async function addToTBR(book, buttonElement) {
   try {
     const response = await fetch(`${API_BASE}/tbr`, {
       method: 'POST',
@@ -1677,18 +1703,53 @@ async function addToTBR(book) {
         author: book.author,
         reasoning: book.reasoning,
         amazonUrl: book.amazonUrl,
+        coverUrl: book.coverUrl,
       }),
     });
 
     const data = await response.json();
 
     if (data.success) {
-      showNotification(`Added "${book.title}" to your TBR list!`, 'success');
-      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
-        loadTBR();
-      } else if (data.book) {
+      // Update cache
+      if (data.book) {
         tbrCache = [data.book, ...tbrCache];
         updateHeroPreviewCard();
+      }
+
+      // If called from a button, handle the UI transition
+      if (buttonElement) {
+        // 1. Success State (Checkmark)
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = '✓ Added';
+        buttonElement.classList.remove('btn-secondary');
+        buttonElement.classList.add('btn-success');
+        buttonElement.disabled = true; // Prevent double clicks during transition
+
+        // 2. Transition to Remove State after 1 second
+        setTimeout(() => {
+          buttonElement.textContent = 'Remove from TBR';
+          buttonElement.classList.remove('btn-success');
+          buttonElement.classList.add('btn-danger');
+          buttonElement.disabled = false;
+          
+          // Update onclick handler to remove
+          // We need the ID of the newly added book
+          if (data.book && data.book.id) {
+            buttonElement.onclick = (e) => {
+              e.preventDefault(); // Prevent any default behavior
+              removeFromTBR(data.book.id, buttonElement);
+            };
+            // Keep data attributes so we can re-add if needed
+          }
+        }, 1000);
+      } else {
+        // Fallback for non-button calls (e.g. if we had other ways to add)
+        showNotification(`Added "${book.title}" to your TBR list!`, 'success');
+      }
+      
+      // If we are on the TBR tab, reload it
+      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
+        loadTBR();
       }
     } else {
       showNotification(data.message || 'Failed to add book to TBR', 'error');
@@ -1699,7 +1760,7 @@ async function addToTBR(book) {
   }
 }
 
-async function removeFromTBR(bookId) {
+async function removeFromTBR(bookId, buttonElement) {
   try {
     const response = await fetch(`${API_BASE}/tbr/${encodeURIComponent(bookId)}`, {
       method: 'DELETE',
@@ -1708,8 +1769,35 @@ async function removeFromTBR(bookId) {
     const data = await response.json();
 
     if (data.success) {
-      showNotification('Book removed from your TBR list.', 'success');
-      loadTBR();
+      // Update cache
+      tbrCache = tbrCache.filter(b => b.id !== bookId);
+      updateHeroPreviewCard();
+
+      if (buttonElement) {
+        // Revert to "Add to TBR" state
+        // We need to reconstruct the book object to put back into data attributes or onclick
+        // But wait, the button originally had data attributes. 
+        // If we stripped them, we might need to put them back or just reload the list.
+        // Actually, simpler: if we remove from a recommendation card, we can just reset the button style and text
+        // and re-attach the addRecommendationToTBR handler.
+        // However, addRecommendationToTBR reads from data attributes.
+        // So we should NOT remove data attributes in addToTBR, just ignore them.
+        
+        buttonElement.textContent = 'Add to TBR';
+        buttonElement.classList.remove('btn-danger');
+        buttonElement.classList.add('btn-secondary');
+        buttonElement.onclick = (e) => {
+            e.preventDefault();
+            addRecommendationToTBR(buttonElement);
+        };
+      } else {
+        showNotification('Book removed from your TBR list.', 'success');
+      }
+
+      // If on TBR tab, reload
+      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
+        loadTBR();
+      }
     } else {
       showNotification(data.message || 'Failed to remove book.', 'error');
     }

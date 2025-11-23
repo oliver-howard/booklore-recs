@@ -290,10 +290,10 @@ export class RecommendationService {
       if (hasBookLore) return 'booklore';
       if (hasGoodreads) return 'goodreads';
     } else {
-      // auto: prioritize BookLore > Hardcover > Goodreads
-      if (hasBookLore) return 'booklore';
+      // auto: prioritize Hardcover > Goodreads > BookLore
       if (hasHardcover) return 'hardcover';
       if (hasGoodreads) return 'goodreads';
+      if (hasBookLore) return 'booklore';
     }
 
     throw new Error('No reading history configured. Please connect a data source (BookLore, Hardcover, or Goodreads).');
