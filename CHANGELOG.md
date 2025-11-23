@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.2...book-rex-v1.10.0) (2025-11-23)
+
+
+### Features
+
+* Add Hardcover as a data source with per-user API key management and refactor client instantiation. ([953279a](https://github.com/oliver-howard/book-rex/commit/953279a8c09bd37c43727620a01bffc59dab2e00))
+* fetch and map user book review data and remove unused genre placeholder. ([b6c7e93](https://github.com/oliver-howard/book-rex/commit/b6c7e934fa32841f926f6d24466a7840b4cb9f84))
+* Implement dynamic 'Add/Remove to TBR' button with visual feedback and reorder reading history source priority. ([bffab34](https://github.com/oliver-howard/book-rex/commit/bffab344c367d07b9222ef1d98dc63409bb39d16))
+* Make bar chart width responsive, increase right margin, and add x-axis padding. ([70c77b8](https://github.com/oliver-howard/book-rex/commit/70c77b8bb20c13120cc9ff31dff0a7928ddddbd3))
+
 ## [1.9.2](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.1...book-rex-v1.9.2) (2025-11-20)
 
 
