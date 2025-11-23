@@ -435,8 +435,9 @@ function dataSourceSummaryText() {
   if (dataSourcePreference === 'hardcover') {
     return 'Currently using Hardcover data for recommendations.';
   }
-  if (hasBookLore) {
-    return 'Using BookLore data when available, otherwise falling back to Goodreads.'  }
+  if (hasBookLore) { // Auto mode
+    return 'Using Hardcover data when available, otherwise falling back to Goodreads or BookLore.';
+  }
   if (hasGoodreads) {
     return 'Using your Goodreads import for recommendations.';
   }
