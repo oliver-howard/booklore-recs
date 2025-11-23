@@ -27,7 +27,8 @@ db.exec(`
     booklore_password TEXT,
     goodreads_readings TEXT,
     data_source_preference TEXT NOT NULL DEFAULT 'auto',
-    is_admin INTEGER NOT NULL DEFAULT 0
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    hardcover_api_key TEXT
   );
 
   CREATE TABLE IF NOT EXISTS tbr_books (
@@ -52,6 +53,7 @@ const alterColumns = [
   `ALTER TABLE users ADD COLUMN reader_profile_last_update TEXT`,
   `ALTER TABLE users ADD COLUMN reader_profile_readings_count INTEGER`,
   `ALTER TABLE tbr_books ADD COLUMN cover_url TEXT`,
+  `ALTER TABLE users ADD COLUMN hardcover_api_key TEXT`,
 ];
 
 for (const statement of alterColumns) {
@@ -76,6 +78,7 @@ export interface User {
   readerProfile?: string;
   readerProfileLastUpdate?: string;
   readerProfileReadingsCount?: number;
+  hardcoverApiKey?: string;
 }
 
 export class DatabaseService {
@@ -128,7 +131,7 @@ export class DatabaseService {
     const stmt = db.prepare(`
       SELECT id, username, password_hash, created_at,
              booklore_username, booklore_password, goodreads_readings,
-             data_source_preference, is_admin
+             data_source_preference, is_admin, hardcover_api_key
       FROM users
       WHERE username = ?
     `);
@@ -154,6 +157,7 @@ export class DatabaseService {
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
       dataSourcePreference: row.data_source_preference || 'auto',
       isAdmin: !!row.is_admin,
+      hardcoverApiKey: row.hardcover_api_key || undefined,
     };
   }
 
@@ -164,7 +168,7 @@ export class DatabaseService {
     const stmt = db.prepare(`
       SELECT id, username, created_at,
              booklore_username, booklore_password, goodreads_readings,
-             data_source_preference, is_admin
+             data_source_preference, is_admin, hardcover_api_key
       FROM users
       WHERE id = ?
     `);
@@ -184,6 +188,7 @@ export class DatabaseService {
       goodreadsReadings: row.goodreads_readings ? JSON.parse(row.goodreads_readings) : undefined,
       dataSourcePreference: row.data_source_preference || 'auto',
       isAdmin: !!row.is_admin,
+      hardcoverApiKey: row.hardcover_api_key || undefined,
     };
   }
 
@@ -207,6 +212,32 @@ export class DatabaseService {
     const stmt = db.prepare(`
       UPDATE users
       SET booklore_username = NULL, booklore_password = NULL
+      WHERE id = ?
+    `);
+
+    stmt.run(userId);
+  }
+
+  /**
+   * Update user's Hardcover credentials
+   */
+  static updateHardcoverCredentials(userId: number, apiKey: string): void {
+    const stmt = db.prepare(`
+      UPDATE users
+      SET hardcover_api_key = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(apiKey, userId);
+  }
+
+  /**
+   * Clear user's Hardcover credentials
+   */
+  static clearHardcoverCredentials(userId: number): void {
+    const stmt = db.prepare(`
+      UPDATE users
+      SET hardcover_api_key = NULL
       WHERE id = ?
     `);
 
@@ -345,7 +376,7 @@ export class DatabaseService {
   }> {
     const stmt = db.prepare(`
       SELECT id, username, created_at, is_admin,
-             booklore_username, booklore_password, goodreads_readings
+             booklore_username, booklore_password, goodreads_readings, hardcover_api_key
       FROM users
       ORDER BY created_at ASC
     `);
@@ -358,6 +389,7 @@ export class DatabaseService {
       createdAt: row.created_at,
       isAdmin: !!row.is_admin,
       hasBookLore: !!(row.booklore_username && row.booklore_password),
+      hasHardcover: !!row.hardcover_api_key,
       hasGoodreads: (() => {
         if (!row.goodreads_readings) {
           return false;

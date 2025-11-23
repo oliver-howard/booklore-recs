@@ -6,6 +6,7 @@ const API_BASE = '/api';
 let isAuthenticated = false;
 let hasReadingHistory = false;
 let hasBookLore = false;
+let hasHardcover = false;
 let hasGoodreads = false;
 let isAdmin = false;
 let notificationTimeout;
@@ -92,6 +93,7 @@ async function checkAuthStatus() {
       isAuthenticated = true;
       hasReadingHistory = data.hasReadingHistory || false;
       hasBookLore = data.hasBookLore || false;
+      hasHardcover = data.hasHardcover || false;
       hasGoodreads = data.hasGoodreads || false;
       isAdmin = !!data.isAdmin;
       dataSourcePreference = data.dataSourcePreference || 'auto';
@@ -144,6 +146,7 @@ async function checkAuthStatus() {
       isAuthenticated = false;
       hasReadingHistory = false;
       hasBookLore = false;
+      hasHardcover = false;
       hasGoodreads = false;
       isAdmin = false;
       dataSourcePreference = 'auto';
@@ -217,6 +220,16 @@ function updateSettingsUI(data) {
     bookloreStatus.style.color = 'var(--text-secondary)';
   }
 
+  // Update Hardcover status
+  const hardcoverStatus = document.getElementById('hardcover-status-text');
+  if (data.hasHardcover) {
+    hardcoverStatus.textContent = '✓ Connected';
+    hardcoverStatus.style.color = 'var(--success-color, #22c55e)';
+  } else {
+    hardcoverStatus.textContent = 'Not connected';
+    hardcoverStatus.style.color = 'var(--text-secondary)';
+  }
+
   // Update Goodreads status
   const goodreadsStatus = document.getElementById('goodreads-status-text');
   if (data.hasGoodreads) {
@@ -242,6 +255,27 @@ function updateSettingsUI(data) {
   
   // Update toggle icon state
   updateBookLoreToggleIcon();
+  updateHardcoverToggleIcon();
+}
+
+function toggleHardcoverSection() {
+  const content = document.getElementById('hardcover-content');
+  if (content) {
+    content.classList.toggle('hidden');
+    updateHardcoverToggleIcon();
+  }
+}
+
+function updateHardcoverToggleIcon() {
+  const content = document.getElementById('hardcover-content');
+  const icon = document.querySelector('.toggle-icon-hardcover svg');
+  if (content && icon) {
+    if (content.classList.contains('hidden')) {
+      icon.style.transform = 'rotate(0deg)';
+    } else {
+      icon.style.transform = 'rotate(180deg)';
+    }
+  }
 }
 
 function toggleBookLoreSection() {
@@ -398,11 +432,17 @@ function dataSourceSummaryText() {
   if (dataSourcePreference === 'goodreads') {
     return 'Currently using Goodreads data for recommendations.';
   }
-  if (hasBookLore) {
-    return 'Using BookLore data when available, otherwise falling back to Goodreads.';
+  if (dataSourcePreference === 'hardcover') {
+    return 'Currently using Hardcover data for recommendations.';
+  }
+  if (hasBookLore) { // Auto mode
+    return 'Using Hardcover data when available, otherwise falling back to Goodreads or BookLore.';
   }
   if (hasGoodreads) {
     return 'Using your Goodreads import for recommendations.';
+  }
+  if (hasHardcover) {
+    return 'Using your Hardcover reading history for recommendations.';
   }
   return 'Connect BookLore or upload Goodreads data to begin.';
 }
@@ -680,6 +720,64 @@ async function removeBookLoreCredentials() {
   }
 }
 
+async function saveHardcoverCredentials(event) {
+  event.preventDefault();
+
+  const apiKey = document.getElementById('hardcover-api-key').value.trim();
+
+  if (!apiKey) {
+    showNotification('Please enter an API Key', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/hardcover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Hardcover API Key saved successfully!', 'success');
+      // Clear the form
+      document.getElementById('hardcover-form').reset();
+      // Refresh auth status to update UI
+      await checkAuthStatus();
+    } else {
+      showNotification(data.message || 'Failed to save API Key', 'error');
+    }
+  } catch (error) {
+    console.error('Error saving Hardcover credentials:', error);
+    showNotification('Failed to save API Key. Please try again.', 'error');
+  }
+}
+
+async function removeHardcoverCredentials() {
+  if (!confirm('Remove Hardcover connection? This will not delete your reading history.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/settings/hardcover`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Hardcover connection removed', 'success');
+      await checkAuthStatus();
+    } else {
+      showNotification(data.message || 'Failed to remove connection', 'error');
+    }
+  } catch (error) {
+    console.error('Error removing Hardcover credentials:', error);
+    showNotification('Failed to remove connection. Please try again.', 'error');
+  }
+}
+
 async function uploadGoodreadsCSV() {
   const fileInput = document.getElementById('settings-csv-input');
   const file = fileInput.files[0];
@@ -754,6 +852,7 @@ async function handleLogout() {
     isAuthenticated = false;
     hasReadingHistory = false;
     hasBookLore = false;
+    hasHardcover = false;
     hasGoodreads = false;
     clearAppState();
     showLoginModal();
@@ -833,14 +932,28 @@ function buildRecommendationActions(rec) {
   const jsAuthor = escapeForOnclick(rec.author || '');
   const jsAmazon = escapeForOnclick(rec.amazonUrl || '');
 
-  return `
-    <div class="recommendation-actions">
+  const inTBR = isInTBR(rec);
+  
+  let tbrButtonHtml;
+  
+  if (inTBR) {
+    // Find the book ID from cache if possible, though removeFromTBR usually needs ID
+    // Since we store title/author in TBR, we might need to look it up or pass title/author to remove
+    // For now, let's assume we can find it or use a different removal strategy.
+    // Actually, removeFromTBR takes an ID. Let's find the ID from the cache.
+    const tbrBook = tbrCache.find(b => b.title === rec.title && b.author === rec.author);
+    const bookId = tbrBook ? tbrBook.id : '';
+    
+    tbrButtonHtml = `
       <button
-        class="btn btn-sm btn-primary"
-        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
+        class="btn btn-sm btn-danger"
+        onclick="removeFromTBR(${bookId}, this)"
       >
-        View Details
+        Remove from TBR
       </button>
+    `;
+  } else {
+    tbrButtonHtml = `
       <button
         class="btn btn-sm btn-secondary"
         data-title="${titleData}"
@@ -852,6 +965,18 @@ function buildRecommendationActions(rec) {
       >
         Add to TBR
       </button>
+    `;
+  }
+
+  return `
+    <div class="recommendation-actions">
+      <button
+        class="btn btn-sm btn-primary"
+        onclick="fetchBookDetails('${jsTitle}', '${jsAuthor}', '${jsAmazon}', this)"
+      >
+        View Details
+      </button>
+      ${tbrButtonHtml}
     </div>
   `;
 }
@@ -897,7 +1022,7 @@ function addRecommendationToTBR(button) {
     amazonUrl: button.dataset.amazonUrl ? decodeURIComponent(button.dataset.amazonUrl) : undefined,
     coverUrl: button.dataset.coverUrl ? decodeURIComponent(button.dataset.coverUrl) : undefined,
   };
-  addToTBR(book);
+  addToTBR(book, button);
 }
 
 // Error handling
@@ -1433,9 +1558,11 @@ function displayStats(stats, elementId) {
 }
 
 function renderBarChart(data, selector, label) {
-  // Set dimensions
-  const margin = { top: 20, right: 30, bottom: 40, left: 120 };
-  const width = 500 - margin.left - margin.right;
+  // Set dimensions - use container width for responsiveness
+  const margin = { top: 20, right: 60, bottom: 40, left: 120 }; // Increased right margin for labels
+  const container = document.querySelector(selector);
+  const containerWidth = container.clientWidth;
+  const width = containerWidth - margin.left - margin.right;
   const height = 300 - margin.top - margin.bottom;
   const { axisText, axisLine } = getChartColors();
 
@@ -1447,9 +1574,10 @@ function renderBarChart(data, selector, label) {
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // X axis
+  // X axis - add 10% padding to prevent cutoff
+  const maxValue = d3.max(data, d => d.count);
   const x = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.count)])
+    .domain([0, maxValue * 1.1]) // Add 10% padding
     .range([0, width]);
   
   const xAxis = svg.append("g")
@@ -1566,7 +1694,7 @@ async function loadTBR(showLoader = true, refreshHero = true) {
   }
 }
 
-async function addToTBR(book) {
+async function addToTBR(book, buttonElement) {
   try {
     const response = await fetch(`${API_BASE}/tbr`, {
       method: 'POST',
@@ -1576,18 +1704,53 @@ async function addToTBR(book) {
         author: book.author,
         reasoning: book.reasoning,
         amazonUrl: book.amazonUrl,
+        coverUrl: book.coverUrl,
       }),
     });
 
     const data = await response.json();
 
     if (data.success) {
-      showNotification(`Added "${book.title}" to your TBR list!`, 'success');
-      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
-        loadTBR();
-      } else if (data.book) {
+      // Update cache
+      if (data.book) {
         tbrCache = [data.book, ...tbrCache];
         updateHeroPreviewCard();
+      }
+
+      // If called from a button, handle the UI transition
+      if (buttonElement) {
+        // 1. Success State (Checkmark)
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = '✓ Added';
+        buttonElement.classList.remove('btn-secondary');
+        buttonElement.classList.add('btn-success');
+        buttonElement.disabled = true; // Prevent double clicks during transition
+
+        // 2. Transition to Remove State after 1 second
+        setTimeout(() => {
+          buttonElement.textContent = 'Remove from TBR';
+          buttonElement.classList.remove('btn-success');
+          buttonElement.classList.add('btn-danger');
+          buttonElement.disabled = false;
+          
+          // Update onclick handler to remove
+          // We need the ID of the newly added book
+          if (data.book && data.book.id) {
+            buttonElement.onclick = (e) => {
+              e.preventDefault(); // Prevent any default behavior
+              removeFromTBR(data.book.id, buttonElement);
+            };
+            // Keep data attributes so we can re-add if needed
+          }
+        }, 1000);
+      } else {
+        // Fallback for non-button calls (e.g. if we had other ways to add)
+        showNotification(`Added "${book.title}" to your TBR list!`, 'success');
+      }
+      
+      // If we are on the TBR tab, reload it
+      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
+        loadTBR();
       }
     } else {
       showNotification(data.message || 'Failed to add book to TBR', 'error');
@@ -1598,7 +1761,7 @@ async function addToTBR(book) {
   }
 }
 
-async function removeFromTBR(bookId) {
+async function removeFromTBR(bookId, buttonElement) {
   try {
     const response = await fetch(`${API_BASE}/tbr/${encodeURIComponent(bookId)}`, {
       method: 'DELETE',
@@ -1607,8 +1770,35 @@ async function removeFromTBR(bookId) {
     const data = await response.json();
 
     if (data.success) {
-      showNotification('Book removed from your TBR list.', 'success');
-      loadTBR();
+      // Update cache
+      tbrCache = tbrCache.filter(b => b.id !== bookId);
+      updateHeroPreviewCard();
+
+      if (buttonElement) {
+        // Revert to "Add to TBR" state
+        // We need to reconstruct the book object to put back into data attributes or onclick
+        // But wait, the button originally had data attributes. 
+        // If we stripped them, we might need to put them back or just reload the list.
+        // Actually, simpler: if we remove from a recommendation card, we can just reset the button style and text
+        // and re-attach the addRecommendationToTBR handler.
+        // However, addRecommendationToTBR reads from data attributes.
+        // So we should NOT remove data attributes in addToTBR, just ignore them.
+        
+        buttonElement.textContent = 'Add to TBR';
+        buttonElement.classList.remove('btn-danger');
+        buttonElement.classList.add('btn-secondary');
+        buttonElement.onclick = (e) => {
+            e.preventDefault();
+            addRecommendationToTBR(buttonElement);
+        };
+      } else {
+        showNotification('Book removed from your TBR list.', 'success');
+      }
+
+      // If on TBR tab, reload
+      if (document.querySelector('[data-tab="tbr"]').classList.contains('active')) {
+        loadTBR();
+      }
     } else {
       showNotification(data.message || 'Failed to remove book.', 'error');
     }

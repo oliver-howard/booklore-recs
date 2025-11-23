@@ -677,4 +677,98 @@ ${finishedAtField}          }
   private setCache(key: string, data: any): void {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
+
+  /**
+   * Fetch user's reading history (finished books)
+   */
+  async getUserReadingHistory(limit = 100): Promise<UserReading[]> {
+    // Extract user ID from token
+    const userId = this.getUserId();
+    
+    if (!userId) {
+      this.log('Cannot fetch reading history: Unable to extract user ID from token');
+      return [];
+    }
+
+    // Use standard user_books query with numeric user ID (not UUID)
+    // Fetch ALL books without limit
+    const query = `
+      query UserReadBooks($userId: Int!) {
+        user_books(
+          where: { 
+            user_id: { _eq: $userId }
+            status_id: { _eq: 3 }
+          }
+          order_by: { updated_at: desc }
+        ) {
+          status_id
+          rating
+          review
+          book {
+            id
+            title
+            description
+            release_date
+            pages
+            image {
+              url
+            }
+            contributions {
+              author {
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      // Convert user ID to number
+      const userIdNum = parseInt(userId, 10);
+      if (isNaN(userIdNum)) {
+        this.log('User ID is not a valid number:', userId);
+        return [];
+      }
+
+      const data = await this.query<{ user_books: any[] }>(query, {
+        userId: userIdNum,
+      });
+
+      const readings: UserReading[] = [];
+
+      for (const item of data.user_books || []) {
+        const book = item.book;
+        if (!book) continue;
+
+        const authors = (book.contributions || [])
+          .map((c: any) => c.author?.name)
+          .filter(Boolean);
+
+        const reading: UserReading = {
+          bookId: parseInt(book.id),
+          book: {
+            id: parseInt(book.id),
+            title: book.title || 'Unknown Title',
+            author: authors[0] || 'Unknown Author',
+            description: book.description,
+            publishedDate: book.release_date,
+            coverImageUrl: book.image?.url,
+          },
+          rating: item.rating ? item.rating * 2 : undefined, // Convert 5-star to 10-point
+          status: 'read',
+          review: item.review || undefined,
+          finishedAt: undefined,
+        };
+
+        readings.push(reading);
+      }
+
+      this.log(`Fetched ${readings.length} read books from Hardcover (user ID: ${userIdNum})`);
+      return readings;
+    } catch (error) {
+      this.log('Error fetching reading history:', error);
+      return [];
+    }
+  }
 }

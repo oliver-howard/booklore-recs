@@ -29,6 +29,7 @@ export class AuthController {
         logger.debug('Auth status check: Authenticated', { username: user.username, userId: user.id });
         const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
         const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
+        const hasHardcover = !!user.hardcoverApiKey;
         const hasReadingHistory = hasBookLore || hasGoodreads;
 
         res.json({
@@ -37,9 +38,10 @@ export class AuthController {
           hasReadingHistory,
           hasBookLore,
           hasGoodreads,
+          hasHardcover,
           booksCount: user.goodreadsReadings?.length || 0,
           dataSourcePreference: user.dataSourcePreference || 'auto',
-          canChooseDataSource: hasBookLore && hasGoodreads,
+          canChooseDataSource: (hasBookLore ? 1 : 0) + (hasGoodreads ? 1 : 0) + (hasHardcover ? 1 : 0) >= 2,
           isAdmin: user.isAdmin,
         });
         return;

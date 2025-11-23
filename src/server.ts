@@ -67,11 +67,6 @@ if (trustProxySetting !== undefined) {
   logger.info('Trust proxy enabled', { trustProxy: trustProxySetting });
 }
 
-// Initialize Hardcover Client
-const hardcoverClient = new HardcoverClient({
-  apiToken: process.env.HARDCOVER_API_TOKEN || '',
-});
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -151,6 +146,12 @@ declare module 'express-session' {
   }
 }
 
+// Initialize HardcoverClient for global use (book details, TBR, etc.)
+// This client uses the .env API key and is shared across all users for public book data
+const hardcoverClient = new HardcoverClient({
+  apiToken: process.env.HARDCOVER_API_TOKEN || '',
+});
+
 // Initialize Service Factory and Controllers
 const serviceFactory = new ServiceFactory(hardcoverClient);
 const authController = new AuthController(serviceFactory);
@@ -185,6 +186,8 @@ app.post('/api/auth/logout', asyncHandler(authController.logout));
 // ========== Settings Routes ==========
 app.post('/api/settings/booklore', asyncHandler(settingsController.saveBookLoreCredentials));
 app.delete('/api/settings/booklore', asyncHandler(settingsController.removeBookLoreCredentials));
+app.post('/api/settings/hardcover', asyncHandler(settingsController.saveHardcoverCredentials));
+app.delete('/api/settings/hardcover', asyncHandler(settingsController.removeHardcoverCredentials));
 app.post('/api/settings/goodreads', asyncHandler(settingsController.uploadGoodreads));
 app.delete('/api/settings/goodreads', asyncHandler(settingsController.removeGoodreads));
 app.post('/api/settings/data-source', asyncHandler(settingsController.updateDataSource));

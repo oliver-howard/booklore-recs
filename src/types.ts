@@ -97,7 +97,7 @@ export interface AIConfig {
 
 export type RecommendationType = 'similar' | 'contrasting' | 'blindspots';
 
-export type DataSourcePreference = 'auto' | 'booklore' | 'goodreads';
+export type DataSourcePreference = 'auto' | 'booklore' | 'goodreads' | 'hardcover';
 
 // Progress tracking for SSE
 export type ProgressCallback = (stage: string, percent: number, message: string) => void;

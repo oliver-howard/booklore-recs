@@ -15,7 +15,8 @@ import { config } from './config.js';
 
 export class RecommendationService {
   private bookloreClient?: BookLoreClient;
-  private hardcoverClient?: HardcoverClient;
+  private hardcoverClient?: HardcoverClient; // User-specific client for reading history only
+  private globalHardcoverClient?: HardcoverClient; // Global client for book metadata searches
   private aiService: AIService;
   private guestReadings?: UserReading[];
   private dataSourcePreference: DataSourcePreference;
@@ -26,7 +27,8 @@ export class RecommendationService {
     booklorePassword?: string,
     guestReadings?: UserReading[],
     dataSourcePreference: DataSourcePreference = 'auto',
-    hardcoverClient?: HardcoverClient
+    userHardcoverClient?: HardcoverClient, // For reading history
+    globalHardcoverClient?: HardcoverClient // For book searches
   ) {
     if (bookloreUsername && booklorePassword) {
       this.bookloreClient = new BookLoreClient(bookloreUsername, booklorePassword);
@@ -34,7 +36,8 @@ export class RecommendationService {
     this.guestReadings = guestReadings;
     this.dataSourcePreference = dataSourcePreference || 'auto';
     this.aiService = new AIService(aiConfig);
-    this.hardcoverClient = hardcoverClient;
+    this.hardcoverClient = userHardcoverClient;
+    this.globalHardcoverClient = globalHardcoverClient;
   }
 
   /**
@@ -60,7 +63,8 @@ export class RecommendationService {
     
     onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
-    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
+    const sourceName = source === 'booklore' ? 'BookLore' : source === 'hardcover' ? 'Hardcover' : 'Goodreads';
+    console.log(`\nAnalyzing ${readings.length} books from ${sourceName}...\n`);
 
     switch (type) {
       case 'similar':
@@ -109,7 +113,8 @@ export class RecommendationService {
     const source = this.determineDataSource();
     onProgress?.('fetching', 10, 'Fetching reading history...');
     const readings = await this.getReadingsForSource(source);
-    console.log(`\nAnalyzing ${readings.length} books from ${source === 'booklore' ? 'BookLore' : 'Goodreads'}...\n`);
+    const sourceName = source === 'booklore' ? 'BookLore' : source === 'hardcover' ? 'Hardcover' : 'Goodreads';
+    console.log(`\nAnalyzing ${readings.length} books from ${sourceName}...\n`);
 
     const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max, onProgress);
     return recommendations;
@@ -262,26 +267,39 @@ export class RecommendationService {
     return !!(this.guestReadings && this.guestReadings.length > 0);
   }
 
-  private determineDataSource(): 'booklore' | 'goodreads' {
+  private hasHardcoverCredentials(): boolean {
+    return !!this.hardcoverClient;
+  }
+
+  private determineDataSource(): 'booklore' | 'goodreads' | 'hardcover' {
     const hasBookLore = this.hasBookLoreCredentials();
     const hasGoodreads = this.hasGoodreadsReadings();
+    const hasHardcover = this.hasHardcoverCredentials();
     const preference = this.dataSourcePreference || 'auto';
 
     if (preference === 'booklore') {
       if (hasBookLore) return 'booklore';
       if (hasGoodreads) return 'goodreads';
+      if (hasHardcover) return 'hardcover';
     } else if (preference === 'goodreads') {
       if (hasGoodreads) return 'goodreads';
       if (hasBookLore) return 'booklore';
-    } else {
+      if (hasHardcover) return 'hardcover';
+    } else if (preference === 'hardcover') {
+      if (hasHardcover) return 'hardcover';
       if (hasBookLore) return 'booklore';
       if (hasGoodreads) return 'goodreads';
+    } else {
+      // auto: prioritize Hardcover > Goodreads > BookLore
+      if (hasHardcover) return 'hardcover';
+      if (hasGoodreads) return 'goodreads';
+      if (hasBookLore) return 'booklore';
     }
 
-    throw new Error('No reading history configured. Please connect BookLore or upload a Goodreads CSV.');
+    throw new Error('No reading history configured. Please connect a data source (BookLore, Hardcover, or Goodreads).');
   }
 
-  private async getReadingsForSource(source: 'booklore' | 'goodreads'): Promise<UserReading[]> {
+  private async getReadingsForSource(source: 'booklore' | 'goodreads' | 'hardcover'): Promise<UserReading[]> {
     if (source === 'booklore') {
       if (!this.bookloreClient) {
         throw new Error('BookLore credentials not configured.');
@@ -289,6 +307,17 @@ export class RecommendationService {
       const readings = await this.bookloreClient.getUserReadingHistory();
       if (!readings || readings.length === 0) {
         throw new Error('No reading history found in BookLore. Please read and rate some books first.');
+      }
+      return readings;
+    }
+
+    if (source === 'hardcover') {
+      if (!this.hardcoverClient) {
+        throw new Error('Hardcover API key not configured.');
+      }
+      const readings = await this.hardcoverClient.getUserReadingHistory();
+      if (!readings || readings.length === 0) {
+        throw new Error('No reading history found in Hardcover. Please mark some books as read first.');
       }
       return readings;
     }
@@ -304,7 +333,8 @@ export class RecommendationService {
    * Enrich recommendations with cover images from Hardcover
    */
   private async enrichWithCovers(recommendations: Recommendation[]): Promise<Recommendation[]> {
-    if (!this.hardcoverClient) {
+    // Use global Hardcover client for book metadata searches
+    if (!this.globalHardcoverClient) {
       return recommendations;
     }
 
@@ -312,7 +342,7 @@ export class RecommendationService {
     const enriched = await Promise.all(
       recommendations.map(async (rec) => {
         try {
-          const book = await this.hardcoverClient!.getBookDetails(rec.title, rec.author);
+          const book = await this.globalHardcoverClient!.getBookDetails(rec.title, rec.author);
           if (book && book.images && book.images.length > 0) {
             return { ...rec, coverUrl: book.images[0].url };
           }

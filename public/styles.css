@@ -621,6 +621,12 @@ body {
   color: #fff;
 }
 
+.btn-success {
+  background: var(--success);
+  color: #fff;
+  border-color: transparent;
+}
+
 .btn-sm {
   padding: 8px 14px;
   font-size: 0.85rem;
