@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.10.0...book-rex-v1.10.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* Add Hardcover API key verification and incorporate Hardcover into reading history detection. ([ca45ffa](https://github.com/oliver-howard/book-rex/commit/ca45ffa297d6620894dad4e92dfcd359c939e365))
+
 ## [1.10.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.9.2...book-rex-v1.10.0) (2025-11-23)
 
 
