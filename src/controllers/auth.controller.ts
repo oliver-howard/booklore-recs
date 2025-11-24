@@ -30,7 +30,7 @@ export class AuthController {
         const hasBookLore = !!(user.bookloreUsername && user.booklorePassword);
         const hasGoodreads = !!(user.goodreadsReadings && user.goodreadsReadings.length > 0);
         const hasHardcover = !!user.hardcoverApiKey;
-        const hasReadingHistory = hasBookLore || hasGoodreads;
+        const hasReadingHistory = hasBookLore || hasGoodreads || hasHardcover;
 
         res.json({
           authenticated: true,

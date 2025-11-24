@@ -3,6 +3,7 @@ import { DatabaseService } from '../database.js';
 import { GoodreadsParser } from '../goodreads-parser.js';
 import { ServiceFactory } from '../services/service-factory.js';
 import { BookLoreClient } from '../booklore-client.js';
+import { HardcoverClient } from '../hardcover-client.js';
 import { DataSourcePreference } from '../types.js';
 
 /**
@@ -114,20 +115,17 @@ export class SettingsController {
     }
 
     try {
-      // Verify credentials by making a simple request (e.g. get user id)
-      // We can't easily verify without a dedicated method, but we can try to instantiate a client
-      // and maybe fetch something simple if we had a verify method.
-      // For now, we'll assume if it's provided it's intended to be used.
-      // Ideally, we should verify it.
-      // Let's use the existing HardcoverClient structure but we need to pass the new token.
-      // Since HardcoverClient is instantiated in server.ts with a global token,
-      // we might need to refactor how HardcoverClient is used or instantiate a temporary one.
-      // However, the prompt implies we are adding a user-specific key.
-      // The current HardcoverClient takes config in constructor.
+      // Verify the API key before saving
+      const verification = await HardcoverClient.verifyApiKey(apiKey);
       
-      // TODO: In a real scenario, we should verify the token here.
-      // For now, we just save it.
+      if (!verification.valid) {
+        return res.status(400).json({
+          success: false,
+          message: verification.error || 'Invalid API key',
+        });
+      }
       
+      // Save verified credentials
       DatabaseService.updateHardcoverCredentials(req.session.userId, apiKey);
       
       // Clear service instance to force re-initialization

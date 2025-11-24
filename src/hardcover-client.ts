@@ -64,6 +64,53 @@ export class HardcoverClient {
   }
 
   /**
+   * Verify that an API key is valid by making a test query
+   * @returns Object with valid flag and optional error message
+   */
+  static async verifyApiKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
+    try {
+      // Create temporary client with minimal config
+      const tempClient = new HardcoverClient({ apiToken: apiKey });
+      tempClient.debugMode = false; // Disable debug logs for verification
+      
+      // Test 1: Check JWT structure by extracting user ID
+      const userId = tempClient.getUserId();
+      if (!userId) {
+        return {
+          valid: false,
+          error: 'Invalid API key format. Please get a valid key from https://hardcover.app/account/api'
+        };
+      }
+      
+      // Test 2: Make a simple query to verify the key works with the API
+      // Using a minimal query to check authentication
+      const query = `query VerifyToken { me { id } }`;
+      await tempClient.query<{ me: { id: string } }>(query, {}, 0); // No retries for verification
+      
+      return { valid: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check for authorization errors
+      if (errorMessage.includes('Authorization') || 
+          errorMessage.includes('invalid-headers') ||
+          errorMessage.includes('401') ||
+          errorMessage.includes('403')) {
+        return {
+          valid: false,
+          error: 'API key is invalid or expired. Please get a fresh key from https://hardcover.app/account/api'
+        };
+      }
+      
+      // Network or other errors
+      return {
+        valid: false,
+        error: 'Failed to verify API key. Please check your connection and try again.'
+      };
+    }
+  }
+
+  /**
    * Make GraphQL request to Hardcover API with retry logic
    */
   private async query<T>(query: string, variables?: Record<string, any>, retries = 3): Promise<T> {
@@ -690,10 +737,26 @@ ${finishedAtField}          }
       return [];
     }
 
-    // Use standard user_books query with numeric user ID (not UUID)
+    const isUuid = this.isUuid(userId);
+    let variables: Record<string, any>;
+    let queryType: string;
+
+    if (isUuid) {
+      variables = { userId };
+      queryType = '$userId: uuid!';
+    } else {
+      const userIdNum = parseInt(userId, 10);
+      if (isNaN(userIdNum)) {
+        this.log('User ID is not a valid number or UUID:', userId);
+        return [];
+      }
+      variables = { userId: userIdNum };
+      queryType = '$userId: Int!';
+    }
+
     // Fetch ALL books without limit
     const query = `
-      query UserReadBooks($userId: Int!) {
+      query UserReadBooks(${queryType}) {
         user_books(
           where: { 
             user_id: { _eq: $userId }
@@ -724,16 +787,7 @@ ${finishedAtField}          }
     `;
 
     try {
-      // Convert user ID to number
-      const userIdNum = parseInt(userId, 10);
-      if (isNaN(userIdNum)) {
-        this.log('User ID is not a valid number:', userId);
-        return [];
-      }
-
-      const data = await this.query<{ user_books: any[] }>(query, {
-        userId: userIdNum,
-      });
+      const data = await this.query<{ user_books: any[] }>(query, variables);
 
       const readings: UserReading[] = [];
 
@@ -764,7 +818,7 @@ ${finishedAtField}          }
         readings.push(reading);
       }
 
-      this.log(`Fetched ${readings.length} read books from Hardcover (user ID: ${userIdNum})`);
+      this.log(`Fetched ${readings.length} read books from Hardcover (user ID: ${userId})`);
       return readings;
     } catch (error) {
       this.log('Error fetching reading history:', error);
