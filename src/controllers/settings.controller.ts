@@ -308,4 +308,104 @@ export class SettingsController {
       message: 'Data source preference updated',
     });
   };
+
+  /**
+   * Get exclusion list
+   * GET /api/exclusion
+   */
+  getExclusionList = async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    try {
+      const list = DatabaseService.getExclusionList(req.session.userId);
+      res.json({ list });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to get exclusion list',
+      });
+    }
+  };
+
+  /**
+   * Add to exclusion list
+   * POST /api/exclusion
+   */
+  addToExclusionList = async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { book } = req.body;
+
+    if (!book || !book.title || !book.author) {
+      return res.status(400).json({
+        success: false,
+        message: 'Book title and author are required',
+      });
+    }
+
+    try {
+      // Generate ID if not provided
+      // Generate ID if not provided
+      // Actually, generateBookId was in UserDataService. I should check if I moved it or need to implement it here.
+      // Let's implement a simple ID generation here or check if I can reuse something.
+      // I'll implement a local helper or add it to DatabaseService.
+      // For now, let's assume the client sends the ID or we generate it.
+      
+      const id = book.id || `${book.title.toLowerCase()}-${book.author.toLowerCase()}`.replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+      const newBook = DatabaseService.addToExclusionList(req.session.userId, {
+        ...book,
+        id,
+      });
+
+      res.json({
+        success: true,
+        message: 'Book added to exclusion list',
+        book: newBook,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to add to exclusion list',
+      });
+    }
+  };
+
+  /**
+   * Remove from exclusion list
+   * DELETE /api/exclusion/:bookId
+   */
+  removeFromExclusionList = async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authenticated',
+      });
+    }
+
+    const { bookId } = req.params;
+
+    try {
+      DatabaseService.removeFromExclusionList(req.session.userId, bookId);
+      res.json({
+        success: true,
+        message: 'Book removed from exclusion list',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove from exclusion list',
+      });
+    }
+  };
 }

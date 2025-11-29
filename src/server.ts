@@ -191,6 +191,9 @@ app.delete('/api/settings/hardcover', asyncHandler(settingsController.removeHard
 app.post('/api/settings/goodreads', asyncHandler(settingsController.uploadGoodreads));
 app.delete('/api/settings/goodreads', asyncHandler(settingsController.removeGoodreads));
 app.post('/api/settings/data-source', asyncHandler(settingsController.updateDataSource));
+app.get('/api/exclusion', asyncHandler(settingsController.getExclusionList));
+app.post('/api/exclusion', asyncHandler(settingsController.addToExclusionList));
+app.delete('/api/exclusion/:bookId', asyncHandler(settingsController.removeFromExclusionList));
 
 // ========== Recommendation Routes ==========
 app.get('/api/stats', asyncHandler(recommendationController.getStats));

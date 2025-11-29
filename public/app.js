@@ -120,6 +120,7 @@ async function checkAuthStatus() {
           if (isAdmin) {
             await loadAdminUsers();
           }
+          await loadExclusionList();
         } else if (path === '/stats') {
           if (hasReadingHistory) {
             getStats();
@@ -977,6 +978,15 @@ function buildRecommendationActions(rec) {
         View Details
       </button>
       ${tbrButtonHtml}
+      <button
+        class="btn btn-sm btn-ghost"
+        title="Not Interested"
+        data-title="${titleData}"
+        data-author="${authorData}"
+        onclick="addToExclusionList(this)"
+      >
+        Not Interested
+      </button>
     </div>
   `;
 }
@@ -1023,6 +1033,109 @@ function addRecommendationToTBR(button) {
     coverUrl: button.dataset.coverUrl ? decodeURIComponent(button.dataset.coverUrl) : undefined,
   };
   addToTBR(book, button);
+}
+
+async function addToExclusionList(button) {
+  if (!confirm('Mark this book as "Not Interested"? It won\'t be recommended again.')) {
+    return;
+  }
+
+  const book = {
+    title: decodeURIComponent(button.dataset.title || ''),
+    author: decodeURIComponent(button.dataset.author || ''),
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/exclusion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ book }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Book marked as not interested', 'success');
+      // Remove the card from the UI
+      const card = button.closest('.recommendation-item');
+      if (card) {
+        card.remove();
+      }
+    } else {
+      showNotification(data.message || 'Failed to exclude book', 'error');
+    }
+  } catch (error) {
+    console.error('Error excluding book:', error);
+    showNotification('Failed to exclude book', 'error');
+  }
+}
+
+async function loadExclusionList() {
+  const listElement = document.getElementById('exclusion-list');
+  if (!listElement) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/exclusion`);
+    const data = await response.json();
+    
+    if (data.list && data.list.length > 0) {
+      renderExclusionList(data.list);
+    } else {
+      listElement.innerHTML = '<p class="settings-description">No excluded books.</p>';
+    }
+  } catch (error) {
+    console.error('Error loading exclusion list:', error);
+    listElement.innerHTML = '<p class="error-message">Failed to load exclusion list.</p>';
+  }
+}
+
+function renderExclusionList(list) {
+  const listElement = document.getElementById('exclusion-list');
+  if (!listElement) return;
+
+  const html = list.map(book => `
+    <div class="exclusion-item">
+      <div class="exclusion-info">
+        <span class="exclusion-title">${escapeHtml(book.title)}</span>
+        <span class="exclusion-author">by ${escapeHtml(book.author)}</span>
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="removeFromExclusionList('${book.id}')">
+        Remove
+      </button>
+    </div>
+  `).join('');
+
+  listElement.innerHTML = html;
+}
+
+async function removeFromExclusionList(bookId) {
+  try {
+    const response = await fetch(`${API_BASE}/exclusion/${bookId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Book removed from exclusion list', 'success');
+      await loadExclusionList();
+    } else {
+      showNotification(data.message || 'Failed to remove book', 'error');
+    }
+  } catch (error) {
+    console.error('Error removing book:', error);
+    showNotification('Failed to remove book', 'error');
+  }
+}
+
+function toggleExclusionSection() {
+  const content = document.getElementById('exclusion-content');
+  const icon = document.querySelector('.toggle-icon-exclusion svg');
+  if (content) {
+    content.classList.toggle('hidden');
+    if (icon) {
+      icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+  }
 }
 
 // Error handling

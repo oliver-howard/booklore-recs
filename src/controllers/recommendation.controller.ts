@@ -42,10 +42,12 @@ export class RecommendationController {
       const service = await this.serviceFactory.getService(req);
       const { maxRecommendations } = req.body;
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       const recommendations = await service.getRecommendations(
         'similar',
         maxRecommendations,
-        tbrBooks
+        tbrBooks,
+        exclusionList
       );
       res.json({ recommendations });
     } catch (error) {
@@ -65,10 +67,12 @@ export class RecommendationController {
       const service = await this.serviceFactory.getService(req);
       const { maxRecommendations } = req.body;
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       const recommendations = await service.getRecommendations(
         'contrasting',
         maxRecommendations,
-        tbrBooks
+        tbrBooks,
+        exclusionList
       );
       res.json({ recommendations });
     } catch (error) {
@@ -113,10 +117,12 @@ export class RecommendationController {
       }
 
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       const recommendations = await service.getCustomRecommendations(
         criteria,
         maxRecommendations,
-        tbrBooks
+        tbrBooks,
+        exclusionList
       );
       res.json({ recommendations });
     } catch (error) {
@@ -139,6 +145,7 @@ export class RecommendationController {
       
       const service = await this.serviceFactory.getService(req);
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       
       const onProgress = (stage: string, percent: number, message: string) => {
         sendSSEProgress(res, stage, percent, message);
@@ -148,6 +155,7 @@ export class RecommendationController {
         'similar',
         undefined,
         tbrBooks,
+        exclusionList,
         onProgress
       );
       
@@ -172,6 +180,7 @@ export class RecommendationController {
       
       const service = await this.serviceFactory.getService(req);
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       
       const onProgress = (stage: string, percent: number, message: string) => {
         sendSSEProgress(res, stage, percent, message);
@@ -181,6 +190,7 @@ export class RecommendationController {
         'contrasting',
         undefined,
         tbrBooks,
+        exclusionList,
         onProgress
       );
       
@@ -209,7 +219,7 @@ export class RecommendationController {
         sendSSEProgress(res, stage, percent, message);
       };
       
-      const analysis = (await service.getRecommendations('blindspots', undefined, undefined, onProgress)) as ReadingAnalysis;
+      const analysis = (await service.getRecommendations('blindspots', undefined, undefined, undefined, onProgress)) as ReadingAnalysis;
       
       sendSSEComplete(res, { analysis });
     } catch (error) {
@@ -241,6 +251,7 @@ export class RecommendationController {
       
       const service = await this.serviceFactory.getService(req);
       const tbrBooks = DatabaseService.getTBRList(req.session.userId!);
+      const exclusionList = DatabaseService.getExclusionList(req.session.userId!);
       
       const onProgress = (stage: string, percent: number, message: string) => {
         sendSSEProgress(res, stage, percent, message);
@@ -250,6 +261,7 @@ export class RecommendationController {
         criteria,
         undefined,
         tbrBooks,
+        exclusionList,
         onProgress
       );
       

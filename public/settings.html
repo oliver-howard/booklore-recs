@@ -258,6 +258,32 @@
             <p id="data-source-summary" class="settings-description small-text"></p>
           </div>
 
+          <!-- Exclusion List Section -->
+          <div id="exclusion-section" class="settings-section glass-panel">
+            <div class="section-header clickable-header" onclick="toggleExclusionSection()">
+              <div class="header-content">
+                <h3>Exclusion List</h3>
+                <p class="settings-description">
+                  Books you've marked as "Not Interested" will appear here and won't be recommended again.
+                </p>
+              </div>
+              <div class="header-actions">
+                <button type="button" class="icon-button toggle-icon-exclusion" aria-label="Toggle section">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div id="exclusion-content" class="collapsible-content hidden">
+              <div id="exclusion-list" class="exclusion-list">
+                <!-- Exclusion items will be injected here -->
+                <p class="settings-description">No excluded books.</p>
+              </div>
+            </div>
+          </div>
+
           <!-- Admin Tools -->
           <div class="settings-section glass-panel hidden" id="admin-section">
             <div class="section-header">
