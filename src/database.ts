@@ -5,6 +5,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { TBRBook, UserReading, DataSourcePreference } from './types.js';
 
+export interface ExclusionBook {
+  id: string;
+  title: string;
+  author: string;
+  reasoning?: string;
+  coverUrl?: string;
+  addedAt: string;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -44,6 +53,20 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_tbr_user_id ON tbr_books(user_id);
+
+  CREATE TABLE IF NOT EXISTS excluded_books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    book_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    reasoning TEXT,
+    cover_url TEXT,
+    added_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_excluded_user_id ON excluded_books(user_id);
 `);
 
 const alterColumns = [
@@ -458,5 +481,88 @@ export class DatabaseService {
       lastUpdate: row.reader_profile_last_update,
       readingsCount: row.reader_profile_readings_count,
     };
+  }
+
+  /**
+   * Add book to user's exclusion list
+   */
+  static addToExclusionList(userId: number, book: Omit<ExclusionBook, 'addedAt'>): ExclusionBook {
+    const addedAt = new Date().toISOString();
+
+    // Check if already exists to avoid duplicates
+    const existing = db.prepare(`
+      SELECT id FROM excluded_books 
+      WHERE user_id = ? AND book_id = ?
+    `).get(userId, book.id);
+
+    if (existing) {
+      throw new Error('Book already in exclusion list');
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO excluded_books (user_id, book_id, title, author, reasoning, cover_url, added_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      userId,
+      book.id,
+      book.title,
+      book.author,
+      book.reasoning || null,
+      book.coverUrl || null,
+      addedAt
+    );
+
+    return {
+      ...book,
+      addedAt,
+    };
+  }
+
+  /**
+   * Get user's exclusion list
+   */
+  static getExclusionList(userId: number): ExclusionBook[] {
+    const stmt = db.prepare(`
+      SELECT book_id, title, author, reasoning, cover_url, added_at
+      FROM excluded_books
+      WHERE user_id = ?
+      ORDER BY added_at DESC
+    `);
+
+    const rows = stmt.all(userId) as any[];
+
+    return rows.map(row => ({
+      id: row.book_id,
+      title: row.title,
+      author: row.author,
+      reasoning: row.reasoning || undefined,
+      coverUrl: row.cover_url || undefined,
+      addedAt: row.added_at,
+    }));
+  }
+
+  /**
+   * Remove book from user's exclusion list
+   */
+  static removeFromExclusionList(userId: number, bookId: string): void {
+    const stmt = db.prepare(`
+      DELETE FROM excluded_books
+      WHERE user_id = ? AND book_id = ?
+    `);
+
+    stmt.run(userId, bookId);
+  }
+
+  /**
+   * Check if a book is in the exclusion list
+   */
+  static isInExclusionList(userId: number, bookId: string): boolean {
+    const stmt = db.prepare(`
+      SELECT 1 FROM excluded_books
+      WHERE user_id = ? AND book_id = ?
+    `);
+    return !!stmt.get(userId, bookId);
   }
 }

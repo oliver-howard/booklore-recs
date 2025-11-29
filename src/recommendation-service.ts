@@ -56,6 +56,7 @@ export class RecommendationService {
     type: RecommendationType = 'similar',
     maxRecommendations?: number,
     tbrBooks?: TBRBook[],
+    exclusionList?: { id: string }[],
     onProgress?: ProgressCallback
   ): Promise<Recommendation[] | ReadingAnalysis> {
     const max = maxRecommendations || config.ai.maxRecommendations;
@@ -69,10 +70,10 @@ export class RecommendationService {
     switch (type) {
       case 'similar':
         const similarRecs = await this.aiService.getSimilarRecommendations(readings, tbrBooks, max, onProgress);
-        return similarRecs;
+        return this.filterExcluded(similarRecs, exclusionList);
       case 'contrasting':
         const contrastingRecs = await this.aiService.getContrastingRecommendations(readings, tbrBooks, max, onProgress);
-        return contrastingRecs;
+        return this.filterExcluded(contrastingRecs, exclusionList);
       case 'blindspots':
         const analysis = await this.aiService.analyzeReadingBlindSpots(readings, onProgress);
         // Enrich recommendations within blind spots - SKIPPED for performance (client-side fetch)
@@ -99,6 +100,7 @@ export class RecommendationService {
     criteria: string,
     maxRecommendations?: number,
     tbrBooks?: TBRBook[],
+    exclusionList?: { id: string }[],
     onProgress?: ProgressCallback
   ): Promise<Recommendation[]> {
     const max = maxRecommendations || config.ai.maxRecommendations;
@@ -117,7 +119,32 @@ export class RecommendationService {
     console.log(`\nAnalyzing ${readings.length} books from ${sourceName}...\n`);
 
     const recommendations = await this.aiService.getPersonalizedRecommendations(readings, criteria, tbrBooks, max, onProgress);
-    return recommendations;
+    return this.filterExcluded(recommendations, exclusionList);
+  }
+
+  private filterExcluded(recommendations: Recommendation[], exclusionList?: { id: string }[]): Recommendation[] {
+    if (!exclusionList || exclusionList.length === 0) {
+      return recommendations;
+    }
+
+    const excludedIds = new Set(exclusionList.map(b => b.id));
+    
+    // Also generate IDs for recommendations to check against exclusion list
+    // This assumes the ID generation logic is consistent between client/server/DB
+    // Ideally, we should check by title/author if ID is not present on recommendation
+    
+    return recommendations.filter(rec => {
+      // If rec has an ID, check it
+      // if (rec.id && excludedIds.has(rec.id)) return false;
+      
+      // Generate ID from title/author
+      const id = `${rec.title.toLowerCase()}-${rec.author.toLowerCase()}`
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+        
+      return !excludedIds.has(id);
+    });
   }
 
   /**
