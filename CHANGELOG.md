@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.10.1...book-rex-v1.11.0) (2025-11-29)
+
+
+### Features
+
+* Implement user-managed book exclusion list to filter recommendations, not interested button ([baf52f4](https://github.com/oliver-howard/book-rex/commit/baf52f472b6a7e2caf9f45586557d5f633b1cec1))
+
 ## [1.10.1](https://github.com/oliver-howard/book-rex/compare/book-rex-v1.10.0...book-rex-v1.10.1) (2025-11-24)
 
 
